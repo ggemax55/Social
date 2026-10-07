@@ -19,10 +19,8 @@ if not exist ".venv\Scripts\python.exe" (
   %PY% -m venv .venv
   if errorlevel 1 goto error
 )
-echo Checking for updates to the required packages...
-".venv\Scripts\python.exe" -m pip install --disable-pip-version-check --quiet -r requirements.txt
-if errorlevel 1 goto error
 ".venv\Scripts\python.exe" launch.py
+if errorlevel 1 goto error
 exit /b 0
 
 :error

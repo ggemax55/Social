@@ -13,7 +13,4 @@ if [ ! -x .venv/bin/python ]; then
   echo "First start: setting things up. This takes a few minutes..."
   python3 -m venv .venv || { read -r -p "Setup failed. Press Enter to close."; exit 1; }
 fi
-echo "Checking for updates to the required packages..."
-.venv/bin/python -m pip install --disable-pip-version-check --quiet -r requirements.txt \
-  || { read -r -p "Install failed. Press Enter to close."; exit 1; }
-.venv/bin/python launch.py
+.venv/bin/python launch.py || read -r -p "Something went wrong. Press Enter to close."

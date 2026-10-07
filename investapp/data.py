@@ -29,7 +29,19 @@ KNOWN_NAMES: dict[str, str] = {
     "SHY": "Short-term US Treasuries",
     "VNQ": "US real estate (REITs)",
     "ETH-USD": "Ethereum",
+    "BNDX": "International bonds (USD-hedged)",
+    "IEMG": "Emerging markets (iShares)",
+    "AMD=X": "US dollar in Armenian dram",
 }
+
+# Broad, low-cost US-listed funds that international brokers serving Armenia (e.g. Interactive
+# Brokers, Freedom Broker) generally offer. A starting point: check the list against your broker.
+ARMENIA_STARTER = ["VT", "VOO", "VTI", "VXUS", "VWO", "QQQ", "SCHD", "BND", "BNDX", "SHY", "GLD"]
+
+
+def is_market(ticker: str) -> bool:
+    """True for investable assets; False for indexes (^VIX) and exchange rates (AMD=X)."""
+    return not ticker.startswith("^") and not ticker.endswith("=X")
 
 
 def normalize_ticker(ticker: str) -> str:

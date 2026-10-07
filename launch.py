@@ -1,10 +1,11 @@
-"""Start InvestTrack and open it in your web browser.
+"""Start InvestTrack: update it, install what it needs, and open it in your browser.
 
 Used by start-windows.bat and start-mac.command; you can also run `python launch.py`.
 """
 
 from __future__ import annotations
 
+import hashlib
 import subprocess
 import sys
 import time
@@ -14,6 +15,32 @@ from pathlib import Path
 
 PORT = 8501
 URL = f"http://localhost:{PORT}"
+HERE = Path(__file__).resolve().parent
+
+
+def update() -> None:
+    """Install the newest version, then restart this launcher so new code runs."""
+    sys.path.insert(0, str(HERE))
+    from investapp import updater
+
+    if updater.run():
+        sys.exit(subprocess.call([sys.executable, str(HERE / "launch.py"), "--no-update"]))
+
+
+def install_requirements() -> None:
+    """pip install, skipped when requirements.txt hasn't changed since the last success."""
+    req = HERE / "requirements.txt"
+    stamp = Path(sys.prefix) / ".investtrack-requirements"
+    digest = hashlib.sha256(req.read_bytes()).hexdigest()
+    if stamp.exists() and stamp.read_text() == digest:
+        return
+    print("Installing the packages InvestTrack needs (first start takes a few minutes)...")
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "--disable-pip-version-check",
+                           "--quiet", "-r", str(req)])
+    try:
+        stamp.write_text(digest)
+    except OSError:
+        pass  # not in a virtual environment we can write to; just install again next time
 
 
 def server_is_up() -> bool:
@@ -25,11 +52,13 @@ def server_is_up() -> bool:
 
 
 def main() -> int:
-    here = Path(__file__).resolve().parent
+    if "--no-update" not in sys.argv:
+        update()
+    install_requirements()
     server = subprocess.Popen(
-        [sys.executable, "-m", "streamlit", "run", str(here / "app.py"),
+        [sys.executable, "-m", "streamlit", "run", str(HERE / "app.py"),
          "--server.port", str(PORT), "--server.headless", "true"],
-        cwd=here,
+        cwd=HERE,
     )
     for _ in range(240):  # wait up to about 2 minutes
         if server.poll() is not None:

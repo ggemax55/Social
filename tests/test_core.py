@@ -206,6 +206,19 @@ def test_backtest_two_assets_keeps_targets_and_compare():
     table = compare_frequencies(px, {"A": 1}, 1200, idx[0])
     assert len(table) == 5
     assert table["invested"].iloc[2] == pytest.approx(table["invested"].iloc[4])
+    assert (table["fees"] == 0).all()
+
+
+def test_backtest_fees_hurt_small_frequent_orders():
+    from investapp.fees import Broker
+    idx = bdays("2022-01-03", 520)
+    px = pd.DataFrame({"A": np.full(520, 10.0)}, index=idx)
+    broker = Broker("x", min_fee=1.0)
+    table = compare_frequencies(px, {"A": 1}, 1200, idx[0], broker=broker).set_index("contributions")
+    daily = table.iloc[0]
+    monthly = table[table["strategy"].str.startswith("Monthly")].iloc[0]
+    assert daily["fees"] > 10 * monthly["fees"]
+    assert monthly["final_value"] == pytest.approx(monthly["invested"] - monthly["fees"])
 
 
 # ---------- storage & report ----------

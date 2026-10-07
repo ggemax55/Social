@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 import pandas as pd
 
+from .fees import Broker
 from .planner import FREQUENCIES, PERIODS_PER_YEAR, allocate_contribution, normalize_targets, schedule
 
 
@@ -43,6 +44,7 @@ class BacktestResult:
     final_value: float
     contributions: int
     annualized: float  # money-weighted (XIRR)
+    fees: float = 0.0
 
     @property
     def profit(self) -> float:
@@ -66,25 +68,37 @@ def _aligned_prices(prices: pd.DataFrame, tickers: list[str], start, end) -> pd.
     return px
 
 
-def _simulate(px: pd.DataFrame, weights: dict[str, float], buys: pd.Series) -> BacktestResult:
-    """Buy at each day's close in `buys` (date -> amount), steering toward `weights`."""
+def _simulate(
+    px: pd.DataFrame, weights: dict[str, float], buys: pd.Series,
+    broker: Broker | None = None, single_order: bool = False,
+) -> BacktestResult:
+    """Buy at each day's close in `buys` (date -> amount), steering toward `weights`.
+
+    With a `broker`, each order pays its fee out of the money being invested
+    (fractional shares are assumed so results stay comparable)."""
     tickers = list(weights)
     share_delta = pd.DataFrame(0.0, index=px.index, columns=tickers)
     held = {t: 0.0 for t in tickers}
+    total_fees = 0.0
     for day, amount in buys.items():
         day_prices = px.loc[day].to_dict()
         current = {t: held[t] * day_prices[t] for t in tickers}
-        orders, _ = allocate_contribution(amount, weights, current, day_prices)
+        orders, _ = allocate_contribution(amount, weights, current, day_prices, single_order=single_order)
         for row in orders.itertuples():
-            held[row.ticker] += row.shares
-            share_delta.loc[day, row.ticker] += row.shares
+            if row.amount <= 0:
+                continue
+            fee = broker.order_fee(row.amount, row.price) if broker else 0.0
+            shares = max(row.amount - fee, 0.0) / row.price
+            total_fees += min(fee, row.amount)
+            held[row.ticker] += shares
+            share_delta.loc[day, row.ticker] += shares
     value = (share_delta.cumsum() * px).sum(axis=1)
     invested = buys.reindex(px.index, fill_value=0.0).cumsum()
     history = pd.DataFrame({"value": value, "invested": invested})
     history = history[history["invested"] > 0]
     final = float(history["value"].iloc[-1])
     flows = [(d, -a) for d, a in buys.items()] + [(history.index[-1], final)]
-    return BacktestResult(history, float(buys.sum()), final, int(len(buys)), xirr(flows))
+    return BacktestResult(history, float(buys.sum()), final, int(len(buys)), xirr(flows), total_fees)
 
 
 def backtest_plan(
@@ -94,6 +108,8 @@ def backtest_plan(
     frequency: str,
     start,
     end=None,
+    broker: Broker | None = None,
+    single_order: bool = False,
 ) -> BacktestResult:
     """Invest `amount` every period, buying at the close of the first trading day
     on or after each scheduled date. New money is steered toward target weights."""
@@ -103,27 +119,31 @@ def backtest_plan(
     positions = px.index.searchsorted(dates)
     days = [px.index[p] for p in positions if p < len(px.index)]
     buys = pd.Series(float(amount), index=pd.DatetimeIndex(days)).groupby(level=0).sum()
-    return _simulate(px, weights, buys)
+    return _simulate(px, weights, buys, broker, single_order)
 
 
-def backtest_lump_sum(prices: pd.DataFrame, targets: dict[str, float], total: float, start, end=None) -> BacktestResult:
+def backtest_lump_sum(
+    prices: pd.DataFrame, targets: dict[str, float], total: float, start, end=None, broker: Broker | None = None
+) -> BacktestResult:
     """Invest everything on the first trading day and hold."""
     weights = normalize_targets(targets)
     px = _aligned_prices(prices, list(weights), start, end)
-    return _simulate(px, weights, pd.Series([float(total)], index=px.index[:1]))
+    return _simulate(px, weights, pd.Series([float(total)], index=px.index[:1]), broker)
 
 
 def compare_frequencies(
-    prices: pd.DataFrame, targets: dict[str, float], yearly_budget: float, start, end=None
+    prices: pd.DataFrame, targets: dict[str, float], yearly_budget: float, start, end=None,
+    broker: Broker | None = None, single_order: bool = False,
 ) -> pd.DataFrame:
     """Same yearly budget, invested daily vs weekly vs monthly vs yearly vs all at once."""
     rows = []
     results: dict[str, BacktestResult] = {}
     for freq in FREQUENCIES:
-        res = backtest_plan(prices, targets, yearly_budget / PERIODS_PER_YEAR[freq], freq, start, end)
+        each = yearly_budget / PERIODS_PER_YEAR[freq]
+        res = backtest_plan(prices, targets, each, freq, start, end, broker, single_order)
         results[freq] = res
-        rows.append(_row(f"{freq.capitalize()} ({yearly_budget / PERIODS_PER_YEAR[freq]:,.2f} each)", res))
-    lump = backtest_lump_sum(prices, targets, results["monthly"].total_invested, start, end)
+        rows.append(_row(f"{freq.capitalize()} ({each:,.2f} each)", res))
+    lump = backtest_lump_sum(prices, targets, results["monthly"].total_invested, start, end, broker)
     rows.append(_row("Lump sum (all at the start)", lump))
     return pd.DataFrame(rows)
 
@@ -137,4 +157,5 @@ def _row(label: str, r: BacktestResult) -> dict:
         "profit": r.profit,
         "total_return": r.total_return,
         "annualized": r.annualized,
+        "fees": r.fees,
     }

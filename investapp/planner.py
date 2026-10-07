@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import asdict, dataclass, field
 from itertools import takewhile
@@ -10,8 +11,10 @@ from typing import Iterator
 import pandas as pd
 
 FREQUENCIES = ("daily", "weekly", "monthly", "yearly")
+PLAN_FREQUENCIES = ("daily", "weekly", "monthly")  # the three tracks offered for plans
 # Daily plans contribute every weekday (about 261 a year).
 PERIODS_PER_YEAR = {"daily": 261, "weekly": 52, "monthly": 12, "yearly": 1}
+PERIODS_PER_MONTH = {f: n / 12 for f, n in PERIODS_PER_YEAR.items()}
 
 # Educational starting points built from broad, low-cost index ETFs. Not advice.
 TEMPLATES: dict[str, dict[str, float]] = {
@@ -20,6 +23,7 @@ TEMPLATES: dict[str, dict[str, float]] = {
     "Conservative: 30% stocks / 70% bonds": {"VTI": 20, "VXUS": 10, "BND": 70},
     "Balanced: 60% stocks / 40% bonds": {"VTI": 40, "VXUS": 20, "BND": 40},
     "Growth: 90% stocks / 10% bonds": {"VTI": 60, "VXUS": 30, "BND": 10},
+    "World stocks + bonds: 80/20 in two funds": {"VT": 80, "BND": 20},
 }
 
 
@@ -35,13 +39,18 @@ def normalize_targets(targets: dict[str, float]) -> dict[str, float]:
 @dataclass
 class Plan:
     name: str
-    amount: float
+    amount: float  # per contribution, in `currency`
     frequency: str
     targets: dict[str, float] = field(default_factory=dict)
     start_date: str = ""
     whole_shares: bool = False
     active: bool = True
-    last_done: str = ""  # date the most recent contribution was recorded
+    currency: str = "USD"  # currency of `amount`, `buy_threshold` and `pot` (e.g. "AMD")
+    one_order: bool = False  # buy only the asset furthest below target each time (fewer fees)
+    buy_threshold: float = 0.0  # save contributions until they reach this, then buy (0 = buy every time)
+    pot: float = 0.0  # money set aside for this plan but not invested yet
+    dip_boost: float = 0.0  # optional extra (e.g. 0.5 = +50%) when an asset is 10%+ below its 1-year high
+    id: str = ""
 
     def __post_init__(self) -> None:
         self.frequency = self.frequency.strip().lower()
@@ -52,6 +61,13 @@ class Plan:
             raise ValueError("amount must be positive")
         self.start_date = str(pd.Timestamp(self.start_date or pd.Timestamp.today()).date())
         self.targets = normalize_targets(self.targets)
+        self.currency = (self.currency or "USD").upper()
+        self.buy_threshold = max(0.0, float(self.buy_threshold or 0.0))
+        self.pot = max(0.0, float(self.pot or 0.0))
+        self.dip_boost = max(0.0, float(self.dip_boost or 0.0))
+        if not self.id:
+            key = f"{self.name}|{self.frequency}|{self.start_date}"
+            self.id = hashlib.sha1(key.encode()).hexdigest()[:8]
 
     @property
     def yearly_amount(self) -> float:
@@ -118,12 +134,14 @@ def allocate_contribution(
     current_values: dict[str, float] | None = None,
     prices: dict[str, float] | None = None,
     whole_shares: bool = False,
+    single_order: bool = False,
 ) -> tuple[pd.DataFrame, float]:
     """Split new money so the portfolio moves toward its target weights.
 
     Money goes only to assets that are below target after the contribution, in
     proportion to how far below target they are. With an empty portfolio this is
-    simply amount x weight. Selling is never needed.
+    simply amount x weight. Selling is never needed. With `single_order`, all the
+    money goes to the one asset furthest below target, so only one fee is paid.
 
     Returns (orders, leftover_cash). Orders columns: ticker, target_weight,
     current_value, amount, price, shares.
@@ -135,6 +153,11 @@ def allocate_contribution(
     gaps = {t: max(0.0, w * total_after - current[t]) for t, w in weights.items()}
     gap_sum = sum(gaps.values())
     alloc = {t: amount * g / gap_sum if gap_sum > 0 else amount * weights[t] for t, g in gaps.items()}
+    candidates = list(weights)
+    if single_order:
+        best = max(weights, key=lambda t: (gaps[t], weights[t]))
+        alloc = {t: amount if t == best else 0.0 for t in weights}
+        candidates = [best]
 
     def price_of(t: str) -> float:
         p = prices.get(t)
@@ -147,7 +170,7 @@ def allocate_contribution(
         leftover = amount - sum(spent.values())
         # Spend what's left one share at a time on whichever asset is furthest below target.
         while True:
-            affordable = [t for t in weights if not math.isnan(price_of(t)) and price_of(t) <= leftover + 1e-9]
+            affordable = [t for t in candidates if not math.isnan(price_of(t)) and price_of(t) <= leftover + 1e-9]
             if not affordable:
                 break
             best = max(affordable, key=lambda t: weights[t] * total_after - current[t] - spent[t])

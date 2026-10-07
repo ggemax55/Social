@@ -9,3 +9,6 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+
+# Installed version (written by the updater)
+.version

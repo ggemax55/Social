@@ -15,7 +15,9 @@ from pathlib import Path
 import pandas as pd
 
 from .data import KNOWN_NAMES, fetch_prices, latest_prices
+from .data import is_market
 from .indicators import analyze, market_mood
+from .money import fmt, fmt_both, fx_rate, to_usd
 from .planner import Plan, allocate_contribution, rebalance_trades, schedule
 from .portfolio import compute_holdings, current_values, period_performance, value_history, value_holdings
 from .storage import AppState, load_state
@@ -63,13 +65,14 @@ def plan_window(plan: Plan, kind: str, today: pd.Timestamp) -> list[pd.Timestamp
 
 
 def plan_buy_list(plan: Plan, holdings_values: dict[str, float], prices: dict[str, float]) -> tuple[pd.DataFrame, float]:
-    """What the next contribution should buy, steering toward the plan's targets."""
+    """What one contribution (converted to USD) should buy, steering toward the plan's targets."""
     return allocate_contribution(
-        plan.amount,
+        to_usd(plan.amount, plan.currency, fx_rate(prices, plan.currency)),
         plan.targets,
         {t: holdings_values.get(t, 0.0) for t in plan.targets},
         prices,
         whole_shares=plan.whole_shares,
+        single_order=plan.one_order,
     )
 
 
@@ -89,7 +92,7 @@ def build_report(kind: str, state: AppState, prices: pd.DataFrame, today=None) -
         if t not in prices.columns or prices[t].dropna().empty:
             continue
         a = analyze(prices[t], t)
-        if t != "^VIX":
+        if is_market(t):
             analyses.append(a)
         name = KNOWN_NAMES.get(t, t)
         lines.append(f"| {name} ({t}) | {a.price:,.2f} | {pct(a.returns[period])} | {a.trend} | {a.rsi14:.0f} |")
@@ -97,6 +100,7 @@ def build_report(kind: str, state: AppState, prices: pd.DataFrame, today=None) -
     lines += ["", market_mood(analyses, vix), ""]
 
     # Portfolio
+    rate = fx_rate(latest, state.home_currency)
     lines += ["## Your portfolio", ""]
     valued = pd.DataFrame()
     if state.transactions:
@@ -106,7 +110,7 @@ def build_report(kind: str, state: AppState, prices: pd.DataFrame, today=None) -
         perf = period_performance(hist, period)
         all_time = period_performance(hist, "ALL")
         lines += [
-            f"- Value: **{money(perf['end_value'], cur)}**",
+            f"- Value: **{fmt_both(perf['end_value'], state.home_currency, rate)}**",
             f"- Gain {_PERIOD_WORD[kind]}: {money(perf['gain'], cur)} ({pct(perf['gain_pct'])})"
             + (f", plus {money(perf['net_flows'], cur)} you added" if perf["net_flows"] > 0.005 else ""),
             f"- All-time gain: {money(all_time['gain'], cur)} ({pct(all_time['gain_pct'])}) on {money(all_time['net_flows'], cur)} invested",
@@ -132,11 +136,11 @@ def build_report(kind: str, state: AppState, prices: pd.DataFrame, today=None) -
         lines += ["No active plans. Create one in the app's Plans tab.", ""]
     for p in active:
         due = plan_window(p, kind, today)
-        lines.append(f"### {p.name}: {p.amount:,.2f} {cur} {p.frequency}")
+        lines.append(f"### {p.name}: {fmt(p.amount, p.currency)} {p.frequency}")
         if due:
             lines.append(
                 f"{len(due)} contribution(s) due {_PERIOD_WORD[kind]}, "
-                f"{money(len(due) * p.amount, cur)} in total. Next: {due[0].date()}."
+                f"{fmt(len(due) * p.amount, p.currency)} in total. Next: {due[0].date()}."
             )
         else:
             nxt = schedule(p.frequency, p.start_date, today + pd.DateOffset(years=2), from_date=today)
