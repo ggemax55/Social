@@ -1,0 +1,11 @@
+# Your personal portfolio data stays on your computer
+data/portfolio.json
+data/*.tmp
+reports/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+.DS_Store
