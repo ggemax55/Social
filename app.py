@@ -502,12 +502,13 @@ def quick_start() -> None:
         fee = sum(broker.order_fee(buy_usd / n_orders, 100.0) for _ in range(n_orders))
         drafts.append(Plan(f"{freq.capitalize()} plan", each, freq, targets, str(today.date()), currency=cur,
                            one_order=one, buy_threshold=threshold))
-        rows.append({
+        row = {
             "track": freq, f"each time ({cur})": each, "≈ USD": each_usd,
             "how it buys": (f"saves, buys every ~{math.ceil(threshold / each)} contributions" if threshold else "buys every time"),
-            "fee per purchase (USD)": fee if broker.chosen else math.nan,
-            "fee %": fee / buy_usd * 100 if broker.chosen else math.nan,
-        })
+        }
+        if broker.chosen:
+            row.update({"fee per purchase (USD)": fee, "fee %": fee / buy_usd * 100})
+        rows.append(row)
     st.dataframe(pd.DataFrame(rows), hide_index=True,
                  column_config={f"each time ({cur})": st.column_config.NumberColumn(format="%,.0f"), "≈ USD": MONEY,
                                 "fee per purchase (USD)": MONEY, "fee %": st.column_config.NumberColumn(format="%.2f%%")})
