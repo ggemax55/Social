@@ -23,15 +23,28 @@ and tells you exactly what to buy each time a planned contribution is due.
 
 ## Run it on your computer
 
-1. Install [Python 3.10 or newer](https://www.python.org/downloads/).
-2. Open a terminal in this folder and run:
+**The easy way (no typing):**
 
-   ```bash
-   pip install -r requirements.txt
-   streamlit run app.py
-   ```
+1. Install [Python 3.10 or newer](https://www.python.org/downloads/). On Windows, tick
+   **"Add python.exe to PATH"** on the first screen of the installer.
+2. Download this project: on GitHub press the green **Code** button, then **Download ZIP**, and unzip it.
+3. Open the unzipped folder and double-click:
+   - Windows: **`start-windows.bat`** (if Windows shows "Windows protected your PC", click
+     **More info**, then **Run anyway**)
+   - Mac: **`start-mac.command`** (the first time, right-click it and choose **Open**)
+4. The first start takes a few minutes while it installs what it needs. Then the app opens in your
+   web browser at http://localhost:8501. Keep the black window open while you use the app; close it to stop.
 
-3. Your browser opens at http://localhost:8501.
+Next time, just double-click the same file again.
+
+**With a terminal:**
+
+```bash
+pip install -r requirements.txt
+streamlit run app.py
+```
+
+Then open http://localhost:8501 in your browser.
 
 Your data (trades, plans, watchlist) is saved in `data/portfolio.json`. That file is listed in `.gitignore`,
 so it is never uploaded to GitHub. Use **Download my data** in the sidebar for backups. To keep the file
