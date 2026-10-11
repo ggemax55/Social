@@ -1,5 +1,7 @@
 # Your personal portfolio data stays on your computer
 data/portfolio.json
+# Passwords and access tokens: never commit
+.streamlit/secrets.toml
 data/*.tmp
 reports/
 

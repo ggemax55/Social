@@ -21,8 +21,10 @@ class Transaction:
     price: float
     fee: float = 0.0
     note: str = ""
+    bucket: str = ""  # section the trade belongs to ("short", "income", "long"; "" = not assigned)
 
     def __post_init__(self) -> None:
+        self.bucket = (self.bucket or "").strip().lower()
         self.ticker = self.ticker.strip().upper()
         self.side = self.side.strip().lower()
         self.date = str(pd.Timestamp(self.date).date())
@@ -183,3 +185,21 @@ def current_values(valued: pd.DataFrame) -> dict[str, float]:
     if valued.empty:
         return {}
     return {r.ticker: float(r.market_value) for r in valued.itertuples() if not math.isnan(r.market_value)}
+
+
+def holdings_by_bucket(transactions: list[Transaction]) -> dict[str, pd.DataFrame]:
+    """Holdings for each section ("" = trades not assigned to a section).
+
+    Raises ValueError if a section sells more than it bought, e.g. when a sale is
+    labelled with a different section than the purchase.
+    """
+    groups: dict[str, list[Transaction]] = {}
+    for t in transactions:
+        groups.setdefault(t.bucket, []).append(t)
+    out = {}
+    for bucket, txs in groups.items():
+        try:
+            out[bucket] = compute_holdings(txs)
+        except ValueError as e:
+            raise ValueError(f"{e} in section '{bucket or 'not assigned'}'") from e
+    return out

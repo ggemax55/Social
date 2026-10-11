@@ -6,6 +6,7 @@ Used by start-windows.bat and start-mac.command; you can also run `python launch
 from __future__ import annotations
 
 import hashlib
+import os
 import subprocess
 import sys
 import time
@@ -58,7 +59,7 @@ def main() -> int:
     server = subprocess.Popen(
         [sys.executable, "-m", "streamlit", "run", str(HERE / "app.py"),
          "--server.port", str(PORT), "--server.headless", "true"],
-        cwd=HERE,
+        cwd=HERE, env={**os.environ, "INVESTAPP_LAUNCHER": "1"},  # lets the app offer self-updates
     )
     for _ in range(240):  # wait up to about 2 minutes
         if server.poll() is not None:

@@ -12,12 +12,13 @@ from dataclasses import dataclass, field
 
 import pandas as pd
 
+from .buckets import BUCKET_KEYS, label, normalize_split
 from .data import latest_prices
 from .fees import MAX_FEE_SHARE, Broker
 from .indicators import drawdown_from_high
 from .money import TRADING_CURRENCY, fmt, from_usd, fx_rate, to_usd
 from .planner import Plan, allocate_contribution, rebalance_trades, schedule
-from .portfolio import Transaction, compute_holdings, current_values, value_holdings
+from .portfolio import Transaction, compute_holdings, current_values, holdings_by_bucket, value_holdings
 from .storage import AppState
 
 LOOKBACK_DAYS = 31  # missed contributions older than this are dropped
@@ -40,6 +41,7 @@ class Task:
     leftover_usd: float = 0.0
     warnings: list[str] = field(default_factory=list)
     overdue: int = 0  # missed contributions from earlier days included in this task
+    bucket: str = ""  # section of the plan this task belongs to ("" = general)
 
 
 def contribution_key(plan: Plan, day) -> str:
@@ -88,7 +90,24 @@ def _describe_dates(dates: list[pd.Timestamp], today: pd.Timestamp) -> str:
     return text + (f", {missed} of them missed earlier" if missed else "")
 
 
+def bucket_values(transactions: list[Transaction], latest: dict[str, float]) -> dict[str, dict[str, float]]:
+    """section -> {ticker: market value}. Empty if trades can't be split cleanly into sections."""
+    try:
+        return {b: current_values(value_holdings(h, latest)) for b, h in holdings_by_bucket(transactions).items()}
+    except ValueError:
+        return {}
+
+
 def _plan_tasks(
+    plan: Plan, state: AppState, prices: pd.DataFrame, latest: dict, values: dict, broker: Broker, today: pd.Timestamp
+) -> list[Task]:
+    tasks = _plan_tasks_unlabelled(plan, state, prices, latest, values, broker, today)
+    for t in tasks:
+        t.bucket = plan.bucket
+    return tasks
+
+
+def _plan_tasks_unlabelled(
     plan: Plan, state: AppState, prices: pd.DataFrame, latest: dict, values: dict, broker: Broker, today: pd.Timestamp
 ) -> list[Task]:
     dates = pending_dates(plan, state.task_log, today)
@@ -176,6 +195,7 @@ def build_tasks(state: AppState, prices: pd.DataFrame, today=None) -> list[Task]
     today = pd.Timestamp(today or pd.Timestamp.today()).normalize()
     latest = latest_prices(prices)
     broker = state.broker_profile
+    by_bucket = bucket_values(state.transactions, latest)
     try:
         values = current_values(value_holdings(compute_holdings(state.transactions), latest))
     except ValueError:
@@ -187,12 +207,13 @@ def build_tasks(state: AppState, prices: pd.DataFrame, today=None) -> list[Task]
                           "Open **Settings** and pick the broker you use or plan to use. The app then sizes "
                           "every purchase around its fees and whether it sells fractional shares.", 1))
     if not state.plans:
-        tasks.append(Task("setup:plans", "setup", "Create your daily, weekly and monthly plans",
-                          "Open **Plans** and use **Quick start** to split a monthly budget into the three tracks.", 1))
+        tasks.append(Task("setup:plans", "setup", "Set up your three sections: short term, monthly income, long term",
+                          "Open **Plans** and use **Quick start**: tell the app your monthly budget and it shows "
+                          "where each part should go.", 1))
 
     for plan in state.plans:
         if plan.active:
-            tasks += _plan_tasks(plan, state, prices, latest, values, broker, today)
+            tasks += _plan_tasks(plan, state, prices, latest, by_bucket.get(plan.bucket, {}), broker, today)
 
     month_key = f"review:{today:%Y-%m}"
     if values and month_key not in state.task_log:
@@ -200,13 +221,21 @@ def build_tasks(state: AppState, prices: pd.DataFrame, today=None) -> list[Task]
         for plan in state.plans:
             if not plan.active:
                 continue
-            rb = rebalance_trades(plan.targets, {t: values.get(t, 0.0) for t in plan.targets})
+            section = by_bucket.get(plan.bucket, {})
+            rb = rebalance_trades(plan.targets, {t: section.get(t, 0.0) for t in plan.targets})
             if rb["current_value"].sum() > 0:
                 for r in rb[rb["needs_rebalance"]].itertuples():
                     key = (r.ticker, round(r.current_weight, 2), round(r.target_weight, 2))
                     drifted.setdefault(key, []).append(plan.name)
         lines = [f"- {t} is {now:.0%} (target {target:.0%}) in {', '.join(names)}"
                  for (t, now, target), names in drifted.items()]
+        totals = {b: sum(by_bucket.get(b, {}).values()) for b in BUCKET_KEYS}
+        grand, target_split = sum(totals.values()), normalize_split(state.bucket_split)
+        for b in BUCKET_KEYS:
+            share = totals[b] / grand if grand else 0.0
+            if grand and abs(share - target_split[b]) >= 0.10:
+                lines.append(f"- {label(b)} is {share:.0%} of your investments (target {target_split[b]:.0%}). "
+                             "Adding a little more to the sections below target brings it back.")
         if lines:
             tasks.append(Task(month_key, "review", "Monthly balance check",
                               "These drifted 5+ points from their targets:\n" + "\n".join(lines) +
@@ -240,6 +269,8 @@ def complete_task(state: AppState, task: Task, trades: list[Transaction] | None 
     plan = state.plan_by_id(task.plan_id)
     if task.kind in ("buy", "extra"):
         trades = trades or []
+        for t in trades:
+            t.bucket = t.bucket or (plan.bucket if plan else "")
         state.transactions.extend(trades)
         if task.kind == "buy" and plan is not None:
             spent = sum(t.shares * t.price + t.fee for t in trades)

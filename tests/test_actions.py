@@ -139,15 +139,18 @@ def test_setup_routine_and_review_tasks():
     kinds = [t.key for t in build_tasks(s, prices(), TODAY)]
     assert kinds == ["setup:broker", "setup:plans"]
 
-    plan = Plan("Mix", 100, "monthly", {"VT": 50, "BND": 50}, start_date="2026-09-07")
+    plan = Plan("Mix", 100, "monthly", {"VT": 50, "BND": 50}, start_date="2026-09-07", bucket="long")
     s = state_with(plan)
-    s.transactions = [Transaction("2026-09-08", "VT", "buy", 9, 100), Transaction("2026-09-08", "BND", "buy", 2, 50)]
-    s.add_plan(Plan("Mix 2", 50, "weekly", {"VT": 50, "BND": 50}, start_date="2026-09-07"))
+    s.transactions = [Transaction("2026-09-08", "VT", "buy", 9, 100, bucket="long"),
+                      Transaction("2026-09-08", "BND", "buy", 2, 50, bucket="long")]
+    s.add_plan(Plan("Mix 2", 50, "weekly", {"VT": 50, "BND": 50}, start_date="2026-09-07", bucket="long"))
     tasks = build_tasks(s, prices(), TODAY)
     keys = [t.key for t in tasks]
     assert "review:2026-10" in keys and "routine:week:2026-W41" in keys and "routine:month:2026-10" in keys
     review = next(t for t in tasks if t.kind == "review")
     assert review.detail.count("- VT is 90%") == 1 and "in Mix, Mix 2" in review.detail
+    assert "Long term: growth is 100% of your investments (target 50%)" in review.detail
+    assert {t.bucket for t in tasks if t.kind == "buy"} == {"long"}
 
 
 def test_new_state_round_trip_and_ids():
@@ -167,3 +170,23 @@ def test_plan_orders_respects_fees():
     orders, left = plan_orders(plan, 250, {}, {"VT": 100.0}, FREEDOM)
     assert list(orders["shares"]) == [2]
     assert left == pytest.approx(250 - 200 - 1.2)
+
+
+def test_sections_use_their_own_holdings_and_label_trades():
+    long_plan = Plan("Long", 100, "monthly", {"VT": 50, "BND": 50}, start_date=TODAY, bucket="long")
+    s = state_with(long_plan, broker=Broker())
+    # BND held in the short-term section must not count toward the long-term plan's balance.
+    s.transactions = [Transaction("2026-10-01", "BND", "buy", 10, 50, bucket="short"),
+                      Transaction("2026-10-01", "VT", "buy", 1, 100, bucket="long")]
+    buy = next(t for t in build_tasks(s, prices(), TODAY) if t.kind == "buy")
+    amounts = dict(zip(buy.orders.ticker, buy.orders.amount))
+    assert amounts["BND"] > amounts.get("VT", 0)  # long section holds VT only, so BND is below target
+    complete_task(s, buy, [Transaction(str(TODAY.date()), "BND", "buy", 1, 50)], TODAY)
+    assert s.transactions[-1].bucket == "long"
+
+
+def test_old_plans_get_a_section_from_their_schedule():
+    assert Plan("d", 1, "daily", {"VT": 1}).bucket == "short"
+    assert Plan("w", 1, "weekly", {"VT": 1}).bucket == "income"
+    assert Plan("m", 1, "monthly", {"VT": 1}).bucket == "long"
+    assert Plan("x", 1, "daily", {"VT": 1}, bucket="long").bucket == "long"

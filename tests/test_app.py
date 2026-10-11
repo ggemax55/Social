@@ -11,6 +11,9 @@ import investapp.data
 
 AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
 TODAY = str(pd.Timestamp.today().date())
+# Contributions due on a weekend move to Monday, so tests that need something due today start on a weekday.
+LAST_WEEKDAY = str((pd.Timestamp.today() - pd.offsets.BDay(0 if pd.Timestamp.today().weekday() < 5 else 1)).date())
+IS_WEEKDAY = pd.Timestamp.today().weekday() < 5
 
 
 def fake_prices(tickers, period="2y"):
@@ -45,7 +48,7 @@ def test_new_user_sees_setup_tasks_and_all_tabs(tmp_path, monkeypatch):
     assert len(at.tabs) >= 10
     titles = " ".join(m.value for m in at.markdown)
     assert "Choose your broker" in titles
-    assert "Create your daily, weekly and monthly plans" in titles
+    assert "Set up your three sections" in titles
 
 
 def test_quick_start_creates_three_plans(tmp_path, monkeypatch):
@@ -54,25 +57,31 @@ def test_quick_start_creates_three_plans(tmp_path, monkeypatch):
     next(n for n in at.number_input if n.label == "Monthly budget (AMD)").set_value(200_000.0)
     next(b for b in at.button if b.label == "Create these plans").click().run()
     assert not at.exception
-    plans = json.loads(path.read_text())["plans"]
-    assert [p["frequency"] for p in plans] == ["daily", "weekly", "monthly"]
-    assert all(p["currency"] == "AMD" for p in plans)
-    daily = plans[0]
-    assert daily["buy_threshold"] > daily["amount"]  # small daily amounts are saved up before buying
+    saved = json.loads(path.read_text())
+    plans = saved["plans"]
+    assert [p["bucket"] for p in plans] == ["short", "income", "long"]
+    assert [p["targets"] for p in plans] == [{"SGOV": 1.0}, {"BND": 0.5, "SCHD": 0.5}, {"VT": 1.0}]
+    assert all(p["currency"] == "AMD" and p["frequency"] == "monthly" for p in plans)
+    short = plans[0]
+    assert short["buy_threshold"] > short["amount"]  # too small for the minimum fee: saved up before buying
+    assert saved["bucket_split"] == {"short": 20.0, "income": 30.0, "long": 50.0}
     titles = " ".join(m.value for m in at.markdown)
-    assert "Set aside" in titles and "Buy for" in titles
+    if IS_WEEKDAY:  # plans start today; on weekends the first contribution is on Monday
+        assert "Set aside" in titles and "Buy for" in titles
+    else:
+        assert "next Mon" in titles
 
 
 def test_buy_task_records_purchase(tmp_path, monkeypatch):
     plan = {"name": "Core", "amount": 40000, "currency": "AMD", "frequency": "weekly",
-            "targets": {"VT": 80, "BND": 20}, "start_date": TODAY}
+            "targets": {"VT": 80, "BND": 20}, "start_date": LAST_WEEKDAY}
     at, path = make_app(tmp_path, monkeypatch, {"broker": IBKR, "plans": [plan]})
     next(b for b in at.button if b.label == "✅ Done: I bought these").click().run()
     assert not at.exception
     saved = json.loads(path.read_text())
     assert {t["ticker"] for t in saved["transactions"]} == {"VT", "BND"}
     assert all(t["note"] == "Plan: Core" for t in saved["transactions"])
-    assert any(k.endswith(TODAY) for k in saved["task_log"])
+    assert any(k.endswith(LAST_WEEKDAY) for k in saved["task_log"])
     assert not [b for b in at.button if b.label == "✅ Done: I bought these"]
 
 
@@ -86,3 +95,69 @@ def test_backtest_with_fees_and_broker_switch(tmp_path, monkeypatch):
     broker_box.select("Freedom Broker Armenia").run()
     assert not at.exception
     assert json.loads(path.read_text())["broker"]["name"] == "Freedom Broker Armenia"
+
+
+def test_notification_bar_and_sections_view(tmp_path, monkeypatch):
+    plan = {"name": "Long", "amount": 40000, "currency": "AMD", "frequency": "weekly", "bucket": "long",
+            "targets": {"VT": 100}, "start_date": LAST_WEEKDAY}
+    trades = [
+        {"date": "2025-01-06", "ticker": "SGOV", "side": "buy", "shares": 5, "price": 100, "bucket": "short"},
+        {"date": "2025-01-06", "ticker": "VT", "side": "buy", "shares": 3, "price": 100, "bucket": "long"},
+        {"date": "2025-01-06", "ticker": "BND", "side": "buy", "shares": 1, "price": 100},
+    ]
+    at, _ = make_app(tmp_path, monkeypatch, {"broker": IBKR, "plans": [plan], "transactions": trades})
+    bar = [w.value for w in at.warning if "thing(s) to do now" in w.value]
+    assert bar and "Buy for “Long”" in bar[0]
+    labels = [m.label for m in at.metric]
+    assert "🍞 Short term: daily bread" in labels and "🌳 Long term: growth" in labels
+    assert any("Not in a section" in e.label for e in at.expander)  # BND has no section yet
+
+
+def test_password_screen(tmp_path, monkeypatch):
+    monkeypatch.setenv("INVESTAPP_PASSWORD", "s3cret")
+    at, _ = make_app(tmp_path, monkeypatch, {})
+    assert not at.tabs  # nothing visible before logging in
+    at.text_input[0].input("wrong")
+    at.button[0].click().run()
+    assert "Wrong password." in [e.value for e in at.error]
+    at.text_input[0].input("s3cret")
+    at.button[0].click().run()
+    assert len(at.tabs) >= 10
+
+
+def test_pc_and_phone_share_data_through_github(tmp_path, monkeypatch):
+    import base64
+
+    from investapp import storage
+
+    files = {}
+
+    def fake_github(method, url, token, body=None, timeout=15):
+        if method == "GET":
+            if url not in files:
+                return 404, {}
+            content, sha = files[url]
+            return 200, {"sha": sha, "content": base64.b64encode(content.encode()).decode()}
+        if url in files and body.get("sha") != files[url][1]:
+            return 409, {}
+        sha = f"v{len(files) + 1}-{len(body['content'])}"
+        files[url] = (base64.b64decode(body["content"]).decode(), sha)
+        return 200, {"content": {"sha": sha}}
+
+    monkeypatch.setattr(storage, "_github", fake_github)
+    monkeypatch.setenv("INVESTAPP_GITHUB_TOKEN", "tok")
+    monkeypatch.setenv("INVESTAPP_GITHUB_REPO", "me/investtrack-data")
+    monkeypatch.setattr(investapp.data, "fetch_prices", fake_prices)
+
+    pc = AppTest.from_file("../app.py", default_timeout=60)
+    pc.run()
+    assert not pc.exception
+    next(s for s in pc.selectbox if s.label == "Broker you use (or plan to use)").select("Freedom Broker Armenia").run()
+    assert not pc.exception
+
+    phone = AppTest.from_file("../app.py", default_timeout=60)
+    phone.run()
+    assert not phone.exception
+    broker_box = next(s for s in phone.selectbox if s.label == "Broker you use (or plan to use)")
+    assert broker_box.value == "Freedom Broker Armenia"
+    assert any("Synced with GitHub (me/investtrack-data)" in c.value for c in phone.caption)

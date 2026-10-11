@@ -30,13 +30,15 @@ KNOWN_NAMES: dict[str, str] = {
     "VNQ": "US real estate (REITs)",
     "ETH-USD": "Ethereum",
     "BNDX": "International bonds (USD-hedged)",
+    "SGOV": "US Treasury bills, 0-3 months",
+    "BIL": "US Treasury bills, 1-3 months",
     "IEMG": "Emerging markets (iShares)",
     "AMD=X": "US dollar in Armenian dram",
 }
 
 # Broad, low-cost US-listed funds that international brokers serving Armenia (e.g. Interactive
 # Brokers, Freedom Broker) generally offer. A starting point: check the list against your broker.
-ARMENIA_STARTER = ["VT", "VOO", "VTI", "VXUS", "VWO", "QQQ", "SCHD", "BND", "BNDX", "SHY", "GLD"]
+ARMENIA_STARTER = ["VT", "VOO", "VTI", "VXUS", "VWO", "QQQ", "SCHD", "BND", "BNDX", "SHY", "SGOV", "BIL", "GLD"]
 
 
 def is_market(ticker: str) -> bool:

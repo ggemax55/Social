@@ -1,0 +1,41 @@
+# Sends your InvestTrack to-do list to Telegram every morning.
+# Does nothing until it's set up: see "Reminders on your phone" in README.md.
+name: Daily reminders
+
+on:
+  schedule:
+    - cron: "0 5 * * *"  # 05:00 UTC = 09:00 in Yerevan
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      INVESTAPP_GITHUB_TOKEN: ${{ secrets.INVESTAPP_GITHUB_TOKEN }}
+      INVESTAPP_GITHUB_REPO: ${{ secrets.INVESTAPP_GITHUB_REPO }}
+    steps:
+      - name: Check setup
+        id: setup
+        run: |
+          if [ -n "$INVESTAPP_GITHUB_TOKEN" ] && [ -n "$INVESTAPP_GITHUB_REPO" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Reminders are not set up yet (add the INVESTAPP_GITHUB_TOKEN and INVESTAPP_GITHUB_REPO secrets)."
+          fi
+      - uses: actions/checkout@v4
+        if: steps.setup.outputs.ready == 'true'
+      - uses: actions/setup-python@v5
+        if: steps.setup.outputs.ready == 'true'
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        if: steps.setup.outputs.ready == 'true'
+        run: pip install -r requirements.txt
+      - name: Send today's reminder
+        if: steps.setup.outputs.ready == 'true'
+        run: python -m investapp.notify

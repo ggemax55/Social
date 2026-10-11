@@ -10,6 +10,8 @@ from typing import Iterator
 
 import pandas as pd
 
+from .buckets import BUCKET_KEYS, bucket_for_frequency
+
 FREQUENCIES = ("daily", "weekly", "monthly", "yearly")
 PLAN_FREQUENCIES = ("daily", "weekly", "monthly")  # the three tracks offered for plans
 # Daily plans contribute every weekday (about 261 a year).
@@ -51,6 +53,7 @@ class Plan:
     pot: float = 0.0  # money set aside for this plan but not invested yet
     dip_boost: float = 0.0  # optional extra (e.g. 0.5 = +50%) when an asset is 10%+ below its 1-year high
     id: str = ""
+    bucket: str = ""  # section: "short", "income" or "long" (see buckets.py)
 
     def __post_init__(self) -> None:
         self.frequency = self.frequency.strip().lower()
@@ -68,6 +71,8 @@ class Plan:
         if not self.id:
             key = f"{self.name}|{self.frequency}|{self.start_date}"
             self.id = hashlib.sha1(key.encode()).hexdigest()[:8]
+        if self.bucket not in BUCKET_KEYS:
+            self.bucket = bucket_for_frequency(self.frequency)
 
     @property
     def yearly_amount(self) -> float:

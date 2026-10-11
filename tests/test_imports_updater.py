@@ -3,7 +3,6 @@ import json
 import zipfile
 
 import pandas as pd
-import pytest
 
 from investapp import updater
 from investapp.imports import guess_mapping, merge_trades, parse_trades, read_csv
