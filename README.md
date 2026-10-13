@@ -30,6 +30,7 @@ in AMD across the three sections (20% / 30% / 50% by default) and creates a plan
 | **Portfolio** | Your investments **by section** (value, gain, share vs target), every holding, value over time; import trades from your broker's CSV export or record them by hand |
 | **Markets / Analyze** | Major markets, the USD/AMD rate, any ticker with trend, RSI and plain-language signals |
 | **Backtest** | "What if I had invested X every month for 10 years?", including your broker's fees |
+| **Practice trading** | Learn short-term trading with **pretend money**: a 5-minute chart of today's session, a simple rule (opening range breakout or moving-average crossover) that shows when it would buy and sell, a pretend account with a daily loss limit and an honest record after fees, a test of the rule on the last 60 days compared with just holding the fund, and trading fees of brokers available in Armenia |
 | **Reports** | Daily, weekly, monthly and yearly reports |
 | **Settings** | Country and currency, broker and fees, funds you can buy, **reminders**, **use on PC and iPhone** |
 
@@ -108,6 +109,13 @@ The app doesn't log in to your broker and never places orders: it tells you what
 the broker's app and press Done. Trades can also be imported from a broker's CSV export. A read-only
 automatic connection to Interactive Brokers can be added once you have an account there.
 
+## About day trading
+
+The Practice trading tab exists so you can find out with pretend money whether short-term trading works
+for you, before risking real money. When this was built (October 2026), both rules **lost money over the
+previous 60 days after fees** on SPY, QQQ, Nvidia and Tesla, while simply holding those funds gained.
+Studies of real day traders find that the large majority lose money. The app never places trades.
+
 ## How purchases are sized
 
 - Each section's plans look only at that section's holdings, and new money goes to the funds below
@@ -134,6 +142,7 @@ investapp/buckets.py    the three sections and their suggested funds
 investapp/actions.py    the Action center: tasks from plans, fees, dips and routines
 investapp/storage.py    data: local file or private GitHub repository (sync between devices)
 investapp/notify.py     Telegram reminders (used by .github/workflows/reminders.yml)
+investapp/practice.py   practice trading: 5-minute data, rules, 60-day test, pretend account
 investapp/ics.py        calendar file with plan dates
 investapp/fees.py       broker fee profiles
 investapp/money.py      USD / AMD conversion and formatting

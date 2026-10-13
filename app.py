@@ -16,7 +16,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from investapp import notify, updater
+from investapp import notify, practice, updater
 from investapp.actions import Task, build_tasks, complete_task, done_today, skip_missed, skip_task
 from investapp.backtest import backtest_plan, compare_frequencies
 from investapp.buckets import BUCKET_KEYS, BUCKETS, normalize_split
@@ -337,9 +337,10 @@ if tasks_now:
     ) + (" · …" if len(tasks_now) > 4 else "")
     st.warning(f"**{len(tasks_now)} thing(s) to do now**: {items}. Open the **Action** tab.", icon="🔔")
 
-(tab_action, tab_dash, tab_plans, tab_port, tab_markets, tab_analyze, tab_bt, tab_reports,
+(tab_action, tab_dash, tab_plans, tab_port, tab_markets, tab_analyze, tab_bt, tab_practice, tab_reports,
  tab_settings, tab_learn) = st.tabs(
-    ["Action", "Dashboard", "Plans", "Portfolio", "Markets", "Analyze", "Backtest", "Reports", "Settings", "Learn"]
+    ["Action", "Dashboard", "Plans", "Portfolio", "Markets", "Analyze", "Backtest", "Practice trading", "Reports",
+     "Settings", "Learn"]
 )
 
 # ---------------------------------------------------------------- Action
@@ -1101,6 +1102,273 @@ with tab_bt:
                        "cost much more, which is why daily plans save first and buy later.")
         except ValueError as e:
             st.error(str(e))
+
+# ---------------------------------------------------------------- Practice trading
+
+@st.cache_data(ttl=60, show_spinner="Loading 5-minute prices...")
+def get_intraday(ticker: str, period: str) -> pd.DataFrame:
+    return practice.fetch_intraday(ticker, period)
+
+
+def local_index(index: pd.DatetimeIndex) -> pd.DatetimeIndex:
+    """Bar end times in Yerevan, for charts."""
+    return (index + practice.BAR).tz_convert(practice.LOCAL_TZ).tz_localize(None)
+
+
+def to_plot_time(ts: pd.Timestamp) -> pd.Timestamp:
+    return pd.Timestamp(ts).tz_convert(practice.LOCAL_TZ).tz_localize(None)
+
+
+def intraday_chart(day: pd.DataFrame, p: dict, trades: list, history: pd.DataFrame | None) -> go.Figure:
+    fig = go.Figure()
+    x = local_index(day.index)
+    fig.add_trace(go.Scatter(x=x, y=day.close, name="Price", mode="lines", line=dict(width=2, color=SERIES[0])))
+    if p["rule"] == "orb":
+        rng = practice.opening_range(day, p["opening_minutes"])
+        if rng:
+            for level, name, color in ((rng[0], "Range high (buy above)", SERIES[2]), (rng[1], "Range low (stop-loss)", SERIES[7])):
+                fig.add_trace(go.Scatter(x=[x[0], x[-1]], y=[level, level], name=name, mode="lines",
+                                         line=dict(width=1, color=color, dash="dot")))
+    else:
+        closes = day.close if history is None or history.empty else pd.concat([history.close.tail(40), day.close])
+        for span, color in ((9, SERIES[1]), (21, SERIES[2])):
+            ema = closes.ewm(span=span, adjust=False).mean().loc[day.index]
+            fig.add_trace(go.Scatter(x=x, y=ema, name=f"{span}-bar average", mode="lines", line=dict(width=1.5, color=color)))
+    if trades:
+        fig.add_trace(go.Scatter(
+            x=[to_plot_time(t.entry_time) for t in trades], y=[t.entry for t in trades], name="Rule buys",
+            mode="markers", marker=dict(symbol="triangle-up", size=12, color=GOOD, line=dict(width=2, color="white"))))
+        closed = [t for t in trades if not t.is_open]
+        if closed:
+            fig.add_trace(go.Scatter(
+                x=[to_plot_time(t.exit_time) for t in closed], y=[t.exit for t in closed], name="Rule sells",
+                mode="markers", marker=dict(symbol="x", size=11, color=BAD, line=dict(width=2, color="white")),
+                text=[t.reason for t in closed], hovertemplate="%{y:.2f}: %{text}<extra></extra>"))
+    fig.update_layout(height=380, hovermode="x unified", margin=dict(l=10, r=10, t=30, b=10),
+                      legend=dict(orientation="h", y=1.08, x=0), xaxis_title="Yerevan time", yaxis_title="USD")
+    return fig
+
+
+def practice_settings(p: dict) -> None:
+    with st.expander("Settings: what to trade, the rule, and your safety limits"):
+        with st.form("practice_settings"):
+            tickers = list(dict.fromkeys([*practice.TICKERS, p["ticker"]]))
+            c1, c2, c3 = st.columns(3)
+            ticker = c1.selectbox("What to trade", tickers, index=tickers.index(p["ticker"]),
+                                  format_func=lambda t: f"{t}: {practice.TICKERS.get(t, '')}".rstrip(": "))
+            rule = c2.selectbox("Rule", list(practice.RULES), index=list(practice.RULES).index(p["rule"]),
+                                format_func=practice.RULES.get)
+            minutes = c3.selectbox("Opening range / waiting time (minutes)", [15, 30, 60],
+                                   index=[15, 30, 60].index(p["opening_minutes"]) if p["opening_minutes"] in (15, 30, 60) else 1)
+            c4, c5, c6 = st.columns(3)
+            windows = [30, 60, 90, 120]
+            window = c4.selectbox("Your trading time after that (minutes)", windows,
+                                  index=windows.index(p["window_minutes"]) if p["window_minutes"] in windows else 1)
+            holds = [30, 60, 120, 390]
+            hold = c5.selectbox("Sell at the latest after (minutes)", holds,
+                                index=holds.index(p["max_hold_minutes"]) if p["max_hold_minutes"] in holds else 1)
+            targets = [1.0, 1.5, 2.0, 3.0]
+            target = c6.selectbox("Profit target (times the risk)", targets,
+                                  index=targets.index(p["target_r"]) if p["target_r"] in targets else 2)
+            c7, c8, c9 = st.columns(3)
+            start_home = c7.number_input(f"Pretend money ({home})", min_value=10_000.0,
+                                         value=float(round(from_usd(p["start_cash"], home, rate), -3)), step=50_000.0)
+            risk = c8.slider("Risk per trade (% of the account)", 0.25, 3.0, float(p["risk_pct"]), 0.25,
+                             help="How much you lose if the stop-loss is hit. Professionals usually risk 0.5-1%.")
+            limit = c9.number_input(f"Stop for the day after losing ({home})", min_value=0.0,
+                                    value=float(p["daily_loss_limit"]), step=1000.0)
+            c10, c11, c12 = st.columns(3)
+            max_trades = c10.number_input("Max trades per day", 1, 10, int(p["max_trades"]))
+            stop_pct = c11.number_input("Stop-loss for the moving-average rule (%)", 0.1, 5.0, float(p["stop_pct"]), 0.1)
+            long_only = c12.checkbox("Only buy (no short selling)", value=bool(p["long_only"]),
+                                     help="Short selling bets on a fall and its losses can grow quickly. Keep this on while learning.")
+            if st.form_submit_button("Save settings"):
+                p.update(ticker=ticker, rule=rule, opening_minutes=minutes, window_minutes=window, max_hold_minutes=hold,
+                         target_r=target, start_cash=to_usd(start_home, home, rate), risk_pct=risk,
+                         daily_loss_limit=limit, max_trades=int(max_trades), stop_pct=stop_pct, long_only=long_only)
+                st.session_state.pop("practice_test", None)
+                persist()
+                flash("Practice settings saved.")
+                st.rerun()
+
+
+def trading_fee_table() -> pd.DataFrame:
+    rows = []
+    for name, b in BROKER_PRESETS.items():
+        if name in (NOT_CHOSEN, OTHER_BROKER):
+            continue
+        round_trip = 2 * b.order_fee(1000, 500)
+        rows.append({"broker": name, "fee in + out on a $1,000 trade (USD)": round_trip,
+                     f"≈ {home}": from_usd(round_trip, home, rate), "% of the trade": round_trip / 10,
+                     "for day trading": "best: lowest cost, free demo account, fast platform" if round_trip < 1.5
+                     else ("costly: fees eat most small wins" if round_trip >= 5 else "possible but costly")})
+    return pd.DataFrame(rows)
+
+
+with tab_practice:
+    p = state.practice
+    acct = practice.PaperAccount(p)
+    st.header("Practice trading (pretend money)")
+    st.caption("Learn short-term trading without risking money. A simple, clear rule shows when it would buy and "
+               "sell; you practise with pretend money, and the app keeps an honest record after fees. Prices come "
+               "from Yahoo Finance and can be up to 15 minutes late: for real trading use your broker's live prices.")
+    is_open, market_text = practice.market_status()
+    (st.success if is_open else st.info)(
+        f"{market_text} US trading hours are 17:30-00:00 Yerevan time (18:30-01:00 from November to mid-March).")
+    practice_settings(p)
+
+    bars = get_intraday(p["ticker"], "5d")
+    last_price = None
+    if bars.empty:
+        st.warning(f"Couldn't load 5-minute prices for {p['ticker']}. Press Refresh or try another ticker.")
+    else:
+        sess = practice.sessions(bars)
+        keys = list(sess)
+        day_bars = practice.complete_bars(sess[keys[-1]], pd.Timestamp.now(tz="UTC"))
+        history = sess[keys[-2]] if len(keys) > 1 else None
+        last_price = float(sess[keys[-1]].close.iloc[-1])
+        status = practice.live_status(day_bars, p, history)
+        st.subheader(f"{p['ticker']} on {keys[-1]:%a %b %d}: {practice.RULES[p['rule']]}")
+        show = {"buy": st.success, "sell": st.warning}.get(status["state"], st.info)
+        show(f"**{status['message']}**", icon={"buy": "🟢", "sell": "🔴"}.get(status["state"], "ℹ️"))
+        if not is_open:
+            st.caption("This is the last trading session. When the market opens, the rule updates every 5 minutes "
+                       "(press Refresh).")
+        if not day_bars.empty:
+            st.plotly_chart(intraday_chart(day_bars, p, status["trades"], history), width="stretch", key="intraday")
+        r1, r2 = st.columns([1, 4])
+        if r1.button("Refresh prices", key="practice_refresh"):
+            get_intraday.clear()
+            st.rerun()
+        r2.caption(f"Last price: {money(last_price)} per share.")
+        with st.expander("How this rule works"):
+            st.markdown(practice.RULE_HELP[p["rule"]])
+
+    # ------------------------------------------------ pretend account
+    st.subheader("Your pretend account")
+    limit_usd = to_usd(float(p["daily_loss_limit"]), home, rate)
+    today_local = practice.now_local()[:10]
+    card = acct.scorecard()
+    week_start = (pd.Timestamp(today_local) - pd.Timedelta(days=6)).strftime("%Y-%m-%d")
+    week = float(card["by_day"][card["by_day"].index >= week_start].sum()) if len(card["by_day"]) else 0.0
+    m1, m2, m3, m4 = st.columns([4, 3, 3, 3])
+    metric_money(m1, "Balance", acct.equity(last_price))
+    metric_money(m2, "Today", acct.day_result(today_local))
+    metric_money(m3, "Last 7 days", week)
+    metric_money(m4, "Since start", card["total"])
+
+    o = acct.open
+    if o is not None:
+        price_now = last_price or o.entry_price
+        change = o.value_change(price_now) - o.entry_fee
+        st.info(f"Open trade: {'bought' if o.side == 'long' else 'sold short'} {o.shares:g} {o.ticker} at "
+                f"{o.entry_price:,.2f} ({o.entry_time[11:]}). At {price_now:,.2f} that's {money(change)}.")
+        with st.form("practice_close"):
+            c1, c2 = st.columns(2)
+            exit_price = c1.number_input("Price you sell at (USD)", min_value=0.01, value=float(price_now), format="%.2f")
+            exit_fee = c2.number_input("Fee (USD)", min_value=0.0,
+                                       value=float(broker.order_fee(o.shares * price_now, price_now)) if broker.chosen else 0.0,
+                                       format="%.2f")
+            if st.form_submit_button("Close the trade (pretend)", type="primary"):
+                done = acct.close_trade(exit_price, exit_fee)
+                persist()
+                flash(f"Closed: {money(done.net)}.", "✅" if done.net > 0 else "🔻")
+                st.rerun()
+    else:
+        problem = acct.can_open(today_local, limit_usd)
+        if problem:
+            st.error(problem)
+        elif last_price:
+            rule_trade = status["trades"][-1] if status["trades"] and status["trades"][-1].is_open else None
+            stop = rule_trade.stop if rule_trade else last_price * (1 - float(p["stop_pct"]) / 100)
+            suggested = practice.position_size(acct.equity(), last_price, stop, float(p["risk_pct"]), broker.fractional)
+            with st.form("practice_open"):
+                c1, c2, c3, c4 = st.columns(4)
+                sides = ["long"] if p["long_only"] else ["long", "short"]
+                side = c1.selectbox("Direction", sides, format_func={"long": "Buy", "short": "Sell short"}.get)
+                shares = c2.number_input("Shares", min_value=0.0, value=float(round(suggested, 4)), format="%.4f",
+                                         help="Suggested so that hitting the stop-loss loses your chosen risk per trade.")
+                price = c3.number_input("Price (USD)", min_value=0.01, value=float(last_price), format="%.2f")
+                fee = c4.number_input("Fee (USD)", min_value=0.0,
+                                      value=float(broker.order_fee(suggested * last_price, last_price)) if broker.chosen else 0.0,
+                                      format="%.2f")
+                followed = st.checkbox("I'm following the rule", value=status["state"] in ("buy", "in_trade"))
+                note = st.text_input("Why this trade? (helps you learn)")
+                st.caption(f"Stop-loss {stop:,.2f}: if it's hit you lose about "
+                           f"{money(abs(last_price - stop) * suggested)} with the suggested size.")
+                if st.form_submit_button("Open the trade (pretend)", type="primary"):
+                    try:
+                        acct.open_trade(p["ticker"], side, shares, price, fee, followed, note, loss_limit_usd=limit_usd)
+                        persist()
+                        flash("Pretend trade opened.")
+                        st.rerun()
+                    except ValueError as e:
+                        st.error(str(e))
+
+    if card["trades"]:
+        s1, s2, s3, s4 = st.columns(4)
+        s1.metric("Trades", card["trades"])
+        s2.metric("Winning trades", f"{card['win_rate']:.0%}")
+        s3.metric("Average win / loss", f"{card['avg_win']:+.2f} / {card['avg_loss']:+.2f}", help="USD")
+        s4.metric("Followed the rule", f"{card['followed_rule']:.0%}")
+        days = card["by_day"]
+        fig = go.Figure(go.Bar(x=days.index, y=days.values * (rate if home != TRADING_CURRENCY else 1),
+                               marker_color=[GOOD if v > 0 else BAD for v in days.values],
+                               hovertemplate="%{x}: %{y:,.0f}<extra></extra>"))
+        fig.update_layout(title=f"Result per day ({home})", height=260, margin=dict(l=10, r=10, t=40, b=10))
+        st.plotly_chart(fig, width="stretch", key="practice_days")
+        with st.expander("All pretend trades"):
+            st.dataframe(pd.DataFrame([{**t.to_dict(), "net (USD)": t.net} for t in acct.trades]), hide_index=True)
+        confirm = st.checkbox("I want to start over (deletes the pretend trades)")
+        if st.button("Reset pretend account", disabled=not confirm):
+            acct.reset()
+            persist()
+            st.rerun()
+
+    # ------------------------------------------------ does the rule work?
+    st.subheader("Does the rule work? Test it on the last 60 days")
+    st.caption("Runs the rule with your settings on every trading day of the last 60, with the broker's fees, and "
+               "compares it with simply holding the fund.")
+    fee_names = [n for n in BROKER_PRESETS if n not in (NOT_CHOSEN, OTHER_BROKER)]
+    test_options = ["No fees"] + ([broker.name] if broker.chosen and broker.name not in fee_names else []) + fee_names
+    default = broker.name if broker.chosen else "Interactive Brokers (direct account)"
+    test_broker_name = st.selectbox("With the fees of", test_options, index=test_options.index(default), key="practice_fees")
+    if st.button("Test the rule", type="primary"):
+        test_broker = (None if test_broker_name == "No fees"
+                       else broker if test_broker_name == broker.name else BROKER_PRESETS[test_broker_name])
+        hist = get_intraday(p["ticker"], "60d")
+        if hist.empty:
+            st.error("Couldn't load 60 days of 5-minute prices.")
+        else:
+            st.session_state["practice_test"] = (p["ticker"], test_broker_name, practice.backtest(hist, p, test_broker))
+    if "practice_test" in st.session_state:
+        tk, fees_of, res = st.session_state["practice_test"]
+        s = res.summary
+        st.markdown(f"**{tk}, {practice.RULES[p['rule']]}, fees of {fees_of}:**")
+        (st.success if s["net"] > 0 else st.error)(practice.verdict(s))
+        t1, t2, t3, t4 = st.columns(4)
+        metric_money(t1, "Result after fees", s["net"], f"{s['return']:+.1%}")
+        metric_money(t2, "Average per day", s["per_day"])
+        metric_money(t3, "Worst day", s["worst_day"])
+        metric_money(t4, "Fees paid", s["fees"])
+        st.caption(f"{s['trades']} trades on {s['days_traded']} of {s['days']} days; {s['win_rate']:.0%} of trades won. "
+                   f"Simply holding {tk}: {s['buy_and_hold']:+.1%}.")
+        if len(res.equity):
+            st.plotly_chart(line_chart({"Trading the rule": res.equity, f"Just holding {tk}": res.hold},
+                                       "Pretend account value at the end of each day (USD)"),
+                            width="stretch", key="practice_equity")
+        with st.expander("Every trade of the test"):
+            st.dataframe(res.trades, hide_index=True,
+                         column_config={c: MONEY for c in ("entry", "exit", "gross", "fees", "net")})
+
+    st.subheader("Brokers for trading from Armenia")
+    st.dataframe(trading_fee_table(), hide_index=True,
+                 column_config={"fee in + out on a $1,000 trade (USD)": MONEY,
+                                f"≈ {home}": st.column_config.NumberColumn(format="%,.0f"),
+                                "% of the trade": st.column_config.NumberColumn(format="%.2f%%")})
+    st.caption("Each trade is a buy and a sell, so you pay the fee twice. Published fees as found in 2026: confirm "
+               "with the broker. Avoid CFD and 'forex' platforms and anyone promising fixed daily profits.")
+
 
 # ---------------------------------------------------------------- Reports
 

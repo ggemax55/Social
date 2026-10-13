@@ -8,6 +8,7 @@ import pandas as pd
 import pytest
 
 import investapp.data
+import investapp.practice
 
 AppTest = pytest.importorskip("streamlit.testing.v1").AppTest
 TODAY = str(pd.Timestamp.today().date())
@@ -28,11 +29,25 @@ def fake_prices(tickers, period="2y"):
     return pd.DataFrame(cols, index=idx)
 
 
+def fake_intraday(ticker, period="60d", interval="5m"):
+    """Finished 5-minute sessions (no live day), so tests don't depend on the clock."""
+    days = pd.bdate_range(end=pd.Timestamp.today().normalize() - pd.Timedelta(days=1), periods=int(period[:-1]))
+    rng = np.random.default_rng(zlib.crc32(ticker.encode()))
+    frames = []
+    for d in days:
+        idx = pd.date_range(d + pd.Timedelta(hours=9, minutes=30), periods=78, freq="5min", tz="America/New_York")
+        close = 100 * np.exp(np.cumsum(rng.normal(0, 0.002, 78)))
+        frames.append(pd.DataFrame({"open": close, "high": close * 1.001, "low": close * 0.999, "close": close,
+                                    "volume": 1000}, index=idx))
+    return pd.concat(frames)
+
+
 def make_app(tmp_path, monkeypatch, data: dict):
     path = tmp_path / "portfolio.json"
     path.write_text(json.dumps(data))
     monkeypatch.setattr("investapp.storage.DEFAULT_PATH", path)
     monkeypatch.setattr(investapp.data, "fetch_prices", fake_prices)
+    monkeypatch.setattr(investapp.practice, "fetch_intraday", fake_intraday)
     at = AppTest.from_file("../app.py", default_timeout=60)
     at.run()
     assert not at.exception, [e.value for e in at.exception]
@@ -148,6 +163,7 @@ def test_pc_and_phone_share_data_through_github(tmp_path, monkeypatch):
     monkeypatch.setenv("INVESTAPP_GITHUB_TOKEN", "tok")
     monkeypatch.setenv("INVESTAPP_GITHUB_REPO", "me/investtrack-data")
     monkeypatch.setattr(investapp.data, "fetch_prices", fake_prices)
+    monkeypatch.setattr(investapp.practice, "fetch_intraday", fake_intraday)
 
     pc = AppTest.from_file("../app.py", default_timeout=60)
     pc.run()
@@ -161,3 +177,23 @@ def test_pc_and_phone_share_data_through_github(tmp_path, monkeypatch):
     broker_box = next(s for s in phone.selectbox if s.label == "Broker you use (or plan to use)")
     assert broker_box.value == "Freedom Broker Armenia"
     assert any("Synced with GitHub (me/investtrack-data)" in c.value for c in phone.caption)
+
+
+def test_practice_trading_tab(tmp_path, monkeypatch):
+    at, path = make_app(tmp_path, monkeypatch, {"broker": IBKR})
+    assert any(t.label == "Practice trading" for t in at.tabs)
+    next(b for b in at.button if b.label == "Open the trade (pretend)").click().run()
+    assert not at.exception
+    saved = json.loads(path.read_text())["practice"]
+    assert saved["open"] and saved["open"]["ticker"] == "SPY" and saved["open"]["shares"] > 0
+
+    next(b for b in at.button if b.label == "Close the trade (pretend)").click().run()
+    assert not at.exception
+    saved = json.loads(path.read_text())["practice"]
+    assert saved["open"] is None and len(saved["trades"]) == 1
+
+    next(b for b in at.button if b.label == "Test the rule").click().run()
+    assert not at.exception
+    assert any(m.label == "Result after fees" for m in at.metric)
+    fee_table = next(d.value for d in at.dataframe if "fee in + out on a $1,000 trade (USD)" in d.value.columns)
+    assert len(fee_table) == 3

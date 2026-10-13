@@ -17,6 +17,7 @@ from .fees import Broker
 from .money import fx_ticker
 from .planner import Plan
 from .portfolio import Transaction
+from .practice import new_practice
 
 DEFAULT_PATH = Path(
     os.environ.get("INVESTAPP_DATA", Path(__file__).resolve().parent.parent / "data" / "portfolio.json")
@@ -38,6 +39,7 @@ class AppState:
     bucket_split: dict[str, float] = field(default_factory=lambda: dict(DEFAULT_SPLIT))  # % per section
     telegram: dict = field(default_factory=lambda: {"token": "", "chat_id": "", "name": ""})
     app_url: str = ""  # link to the app, included in reminders
+    practice: dict = field(default_factory=new_practice)  # pretend-money trading settings and journal
 
     def to_dict(self) -> dict:
         return {
@@ -54,6 +56,7 @@ class AppState:
             "bucket_split": self.bucket_split,
             "telegram": self.telegram,
             "app_url": self.app_url,
+            "practice": self.practice,
         }
 
     @classmethod
@@ -73,6 +76,7 @@ class AppState:
             bucket_split=dict(d.get("bucket_split", default.bucket_split)),
             telegram={**default.telegram, **d.get("telegram", {})},
             app_url=d.get("app_url", ""),
+            practice={**new_practice(), **d.get("practice", {})},
         )
 
     @property
