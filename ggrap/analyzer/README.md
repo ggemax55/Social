@@ -55,6 +55,6 @@ Re-sort without measuring again: `ggrap/analyzer/.venv/bin/python ggrap/analyzer
 
 ## Accuracy
 
-Checked on 14 test beats with known answers (boom bap 90, trap 136–152 half-time, club 123–126): every tempo, half-time feel, chord loop and style guess came out right, and the automatic sound groups matched the three test folders. Real songs are messier than test beats, so expect some misses. Two things need a human eye:
+Checked on 14 test beats with known answers (boom bap 90, trap 136–152 half-time, club 123–126): every tempo, half-time feel, chord loop and style guess came out right, and the automatic sound groups matched the three test folders. Also checked on a real song (Hypnotize: 95.7 BPM, E, one-chord groove) and on a swung boom bap beat, which first fooled the tempo reading into 120 and then 136 BPM. Tempo is now chosen by laying a beat grid over the song and keeping the one where the drum hits land hardest. Chord names for jazz chords (9ths, rootless voicings) are approximate, since the analyzer matches plain major and minor chords. Real songs are messier than test beats, so expect some misses. Two things need a human eye:
 - Major keys and their relative minor share the same notes (C major and A minor, for example). The analyzer uses the bass line to decide and always reports the other one as `key_relative`.
 - A producer should review every profile before it goes into the app.

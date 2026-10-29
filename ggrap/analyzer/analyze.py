@@ -92,7 +92,7 @@ def analyze(path: Path, clip: float | None = 120) -> dict:
     low_env = librosa.onset.onset_strength(S=librosa.amplitude_to_db(S[freqs < 2000]), sr=sr)
     tg = librosa.feature.tempogram(onset_envelope=low_env, sr=sr).mean(axis=1)
     bpms = librosa.tempo_frequencies(len(tg), sr=sr)
-    cands = {}
+    cands = set()
     for i in np.argsort(-tg)[:12]:
         t = bpms[i]
         if not 40 < t < 400:
@@ -101,10 +101,25 @@ def analyze(path: Path, clip: float | None = 120) -> dict:
             t *= 2
         while t > 180:
             t /= 2
-        cands[round(t, 1)] = max(cands.get(round(t, 1), 0), tg[i])
-    tempo = float(max(cands, key=cands.get)) if cands else 120.0
-    _, beats = librosa.beat.beat_track(onset_envelope=low_env, sr=sr, bpm=tempo, tightness=200)
+        cands.add(round(float(t), 1))
+
+    # Swing and syncopated keys can fake a strong pulse at 2/3 or 3/2 speed.
+    # So for each candidate we lay a beat grid over the song and keep the one
+    # where the drum hits land on the grid the hardest.
+    def alignment(t):
+        _, b = librosa.beat.beat_track(onset_envelope=low_env, sr=sr, bpm=t, tightness=400)
+        return low_env[b].mean() / (low_env.mean() + 1e-9) if len(b) > 3 else 0
+
+    tempo = max(cands, key=alignment) if cands else 120.0
+    # The tempogram is coarse (89.1 for a 90 BPM beat); refine from the tracked beats.
+    _, beats = librosa.beat.beat_track(onset_envelope=low_env, sr=sr, start_bpm=tempo, tightness=200)
     beat_times = librosa.frames_to_time(beats, sr=sr)
+    if len(beat_times) > 8:
+        refined = 60 / float(np.median(np.diff(beat_times)))
+        for k in (0.5, 1, 2):
+            if abs(refined * k - tempo) / tempo < 0.06:
+                tempo = refined * k
+                break
 
     # Drums: how busy the top end is (hi-hats).
     high_env = librosa.onset.onset_strength(S=librosa.amplitude_to_db(S[freqs > 5000]), sr=sr)
@@ -125,7 +140,7 @@ def analyze(path: Path, clip: float | None = 120) -> dict:
     # and its relative minor share notes, so the bass line breaks the tie.
     chroma = librosa.feature.chroma_cqt(y=y_harm, sr=sr)
     key_root, key_mode, key_conf = detect_key(chroma.mean(axis=1))
-    bass = librosa.feature.chroma_cqt(y=y_harm, sr=sr, fmin=librosa.note_to_hz("C1"), n_octaves=3).mean(axis=1)
+    bass = librosa.feature.chroma_cqt(y=y_harm, sr=sr, fmin=librosa.note_to_hz("C1"), n_octaves=2).mean(axis=1)
     rel_root, rel_mode = ((key_root + 9) % 12, "minor") if key_mode == "major" else ((key_root + 3) % 12, "major")
     if bass[rel_root] > bass[key_root] * 1.1:
         key_root, key_mode, rel_root, rel_mode = rel_root, rel_mode, key_root, key_mode
