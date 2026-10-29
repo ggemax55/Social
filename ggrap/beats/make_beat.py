@@ -138,11 +138,11 @@ def render(recipe: dict) -> np.ndarray:
                     add(snare(), when(bar, s), 0.9)
                 for s in recipe["ghost_snare"]:
                     add(snare(0.3), when(bar, s), 0.9)
-            if section in ("main", "break"):
+            if section in ("main", "break") or (section == "intro" and b >= 1):
                 for s, m, ln in recipe["bass_turn" if turn else "bass"]:
                     add(bass_note(m, ln * step * 0.95), when(bar, s), 0.85)
             for s in recipe["chord_steps"]:
-                add(keys(recipe["chord"], step * 6), when(bar, s), 1.0 if section != "intro" else 0.7, pan=-0.25)
+                add(keys(recipe["chord"], step * 6), when(bar, s), 1.0, pan=-0.25)
             if turn and section == "main":
                 for s, notes in recipe["horn_turn"]:
                     add(horn(notes, step * 2), when(bar, s), 1.0, pan=0.15)
