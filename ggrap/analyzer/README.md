@@ -7,30 +7,54 @@ Measures what a beat or song is made of, so the beat engine can build new beats 
 - the most common 4-chord loops, as chord names and as numerals (i – bVI – bIII – bVII)
 - hi-hat density, bass weight, and how much room the midrange leaves for a voice
 
-## Setup
+## Setup on a Mac (one time)
+
+Open Terminal and run, from the `Social` repository folder:
 
 ```bash
-pip install -r ggrap/analyzer/requirements.txt
+bash ggrap/analyzer/setup_mac.sh
 ```
 
-## Use
+It creates a private Python environment, installs the tools, installs ffmpeg if Homebrew is present, and creates `~/Music/GGRap-library`.
 
-Analyze single tracks:
+## Analyze a library (100+ songs)
 
-```bash
-python ggrap/analyzer/analyze.py path/to/beat.mp3
-```
+1. Put songs in `~/Music/GGRap-library`, **one folder per artist or style**. The folder name becomes the label:
 
-Build a profile for an artist or style from a folder of reference tracks (about 20 is a good start):
+   ```
+   GGRap-library/
+     metro-boomin/   20 songs
+     central-cee/    20 songs
+     kochari/        15 songs
+     my-suno-beats/  30 songs
+   ```
 
-```bash
-python ggrap/analyzer/analyze.py ggrap/analyzer/tracks/metro-boomin --profile "Metro Boomin"
-```
+2. Run:
 
-Results are saved as JSON in `ggrap/analyzer/results/`. Audio files in `tracks/` are never committed.
+   ```bash
+   ggrap/analyzer/.venv/bin/python ggrap/analyzer/analyze.py ~/Music/GGRap-library
+   ```
+
+   - Several songs run at once (`--workers`, defaults to your CPU cores minus one).
+   - Only the middle 2 minutes of each song are measured (`--clip 0` for whole songs).
+   - Stop any time. Running again skips songs that are already measured (`--redo` to measure again).
+
+3. Open the results in `ggrap/analyzer/results/`:
+   - `catalog.csv`: one row per song, opens in Numbers or Excel. Style guess, mood guess, sound group, tempo, key, chord loop. Fill in `your_label` where a guess is wrong.
+   - `categories.md`: counts per style, mood, sound group and folder, plus songs to check by ear.
+   - `profile-folder-*.json` and `profile-style-*.json`: profiles for the beat engine. `app_profiles.json` has all of them in one file.
+
+Re-sort without measuring again: `ggrap/analyzer/.venv/bin/python ggrap/analyzer/categorize.py ggrap/analyzer/results`
+
+## How categories are made
+
+- **Your folders** are the most reliable labels. Every folder with 3+ songs gets its own profile.
+- **Style guess**: tempo, half-time feel, hi-hat density, bass weight and brightness compared with 12 style rules (Trap, Drill, Boom Bap, Lo-fi, Old School, G-Funk, Reggaeton/Dancehall, Afro/Amapiano, Club/House, Phonk, Grime, Rage). Styles with similar tempos (Boom Bap, G-Funk, Lo-fi, Reggaeton) are hard to tell apart from these measurements, so check low-confidence rows by ear.
+- **Mood guess**: major or minor, the chord loop, brightness and energy.
+- **Sound groups**: songs clustered by how they sound, with no labels. Useful for finding styles you didn't name.
 
 ## Accuracy
 
-Checked on test beats with known answers (Am–F–C–G at 90 BPM, a 140 BPM trap beat): tempo, half-time feel and chord loops came out right. Two things need a human eye:
+Checked on 14 test beats with known answers (boom bap 90, trap 136–152 half-time, club 123–126): every tempo, half-time feel, chord loop and style guess came out right, and the automatic sound groups matched the three test folders. Real songs are messier than test beats, so expect some misses. Two things need a human eye:
 - Major keys and their relative minor share the same notes (C major and A minor, for example). The analyzer uses the bass line to decide and always reports the other one as `key_relative`.
 - A producer should review every profile before it goes into the app.

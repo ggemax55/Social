@@ -5,3 +5,5 @@ tracks/
 *.m4a
 *.ogg
 *.aac
+.venv/
+__pycache__/

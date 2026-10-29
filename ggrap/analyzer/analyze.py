@@ -7,14 +7,23 @@ beat engine can use.
 
     python ggrap/analyzer/analyze.py tracks/drake/*.mp3 --profile "Drake" --out ggrap/analyzer/results
 
-Only measurements are stored, never the audio itself.
+For big libraries (100+ songs) point it at a folder. It runs several songs at
+once, skips songs it already measured, and sorts everything into categories:
+
+    python ggrap/analyzer/analyze.py ~/Music/GGRap-library --workers 6
+
+Put songs in one subfolder per artist or style (the folder name becomes the
+label). Only measurements are stored, never the audio itself.
 """
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
+import warnings
 from collections import Counter
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import librosa
@@ -65,8 +74,12 @@ def band_share(S: np.ndarray, freqs: np.ndarray, lo: float, hi: float) -> float:
     return float(band / (S.sum() + 1e-9))
 
 
-def analyze(path: Path) -> dict:
-    y, sr = librosa.load(path, sr=22050, mono=True)
+def analyze(path: Path, clip: float | None = 120) -> dict:
+    """Measure one track. By default only the middle `clip` seconds are used:
+    intros and outros are often drumless, and it keeps big batches fast."""
+    full = librosa.get_duration(path=str(path))
+    offset = max(0.0, (full - clip) / 2) if clip and full > clip else 0.0
+    y, sr = librosa.load(path, sr=22050, mono=True, offset=offset, duration=clip or None)
     duration = len(y) / sr
     y_harm, y_perc = librosa.effects.hpss(y)
 
@@ -98,11 +111,14 @@ def analyze(path: Path) -> dict:
     hat_onsets = librosa.onset.onset_detect(onset_envelope=high_env, sr=sr)
     hats_per_beat = len(hat_onsets) / max(1, len(beats))
 
-    # Trap and drill are written at 130-160 but the snare lands half as often.
-    # Very busy hats at a slow tempo mean we locked onto the half-time feel.
-    half_time = False
-    if hats_per_beat >= 5 and tempo * 2 <= 180:
-        tempo, hats_per_beat, half_time = tempo * 2, hats_per_beat / 2, True
+    # Kick and snare can land only every other beat (house kicks on 1 and 3,
+    # trap snare on 3 only), so the low drums alone can read as half tempo.
+    # Dense hi-hats at a slow tempo tell us to double it. If the hats are
+    # still 16ths after doubling, the beat has a half-time feel (trap, drill).
+    doubled = (tempo < 80 and hats_per_beat >= 3.5) or (tempo <= 90 and hats_per_beat >= 6)
+    if doubled and tempo * 2 <= 200:
+        tempo, hats_per_beat = tempo * 2, hats_per_beat / 2
+    half_time = doubled and hats_per_beat >= 2.5
     alt = tempo / 2 if half_time or tempo >= 120 else tempo * 2
 
     # Key from the harmonic part only, so drums don't pull it around. Major
@@ -180,11 +196,13 @@ def analyze(path: Path) -> dict:
 
     return {
         "file": path.name,
-        "duration_s": round(duration, 1),
+        "group": path.parent.name,
+        "duration_s": round(full, 1),
+        "measured_from_s": round(offset, 1),
         "tempo_bpm": round(tempo, 1),
         "tempo_alt_bpm": round(alt, 1),
         "half_time_feel": half_time,
-        "first_beat_s": round(float(beat_times[0]), 3) if len(beat_times) else None,
+        "first_beat_s": round(float(beat_times[0]) + offset, 3) if len(beat_times) else None,
         "key": f"{NOTES[key_root]} {key_mode}",
         "key_relative": f"{NOTES[rel_root]} {rel_mode}",
         "key_confidence": round(key_conf, 2),
@@ -245,42 +263,77 @@ def build_profile(name: str, results: list[dict]) -> dict:
     }
 
 
+def result_name(f: Path) -> str:
+    # Folder + file name, so two "intro.mp3" files from different artists don't collide.
+    return "".join(c if c.isalnum() or c in "-_" else "-" for c in f"{f.parent.name}__{f.stem}") + ".json"
+
+
+def _work(path_str: str, clip):
+    warnings.filterwarnings("ignore")
+    f = Path(path_str)
+    r = analyze(f, clip)
+    r["summary"] = describe(r)
+    return r
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("inputs", nargs="+", help="audio files or folders")
     ap.add_argument("--profile", help="name for a combined profile of all inputs (an artist or style)")
     ap.add_argument("--out", default="ggrap/analyzer/results", help="folder for JSON results")
+    ap.add_argument("--workers", type=int, default=max(1, (os.cpu_count() or 2) - 1), help="songs analyzed at the same time")
+    ap.add_argument("--clip", type=float, default=120, help="seconds from the middle of each song to measure; 0 = whole song")
+    ap.add_argument("--redo", action="store_true", help="measure again even if a result already exists")
+    ap.add_argument("--no-categories", action="store_true", help="skip sorting into categories at the end")
     args = ap.parse_args(argv)
 
     files = []
     for item in map(Path, args.inputs):
-        files += sorted(p for p in item.rglob("*") if p.suffix.lower() in AUDIO_EXT) if item.is_dir() else [item]
+        item = item.expanduser()
+        files += sorted(p for p in item.rglob("*") if p.suffix.lower() in AUDIO_EXT and not p.name.startswith(".")) if item.is_dir() else [item]
     if not files:
         sys.exit("No audio files found. Supported: " + ", ".join(sorted(AUDIO_EXT)))
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    results = []
-    for f in files:
-        try:
-            r = analyze(f)
-        except Exception as e:  # one broken file shouldn't stop a batch
-            print(f"!! {f.name}: {e}")
-            continue
-        r["summary"] = describe(r)
-        results.append(r)
-        (out / (f.stem + ".json")).write_text(json.dumps(r, ensure_ascii=False, indent=2))
-        loop = r["chord_loops"][0] if r["chord_loops"] else None
-        print(f"{f.name}: {r['tempo_bpm']} BPM (or {r['tempo_alt_bpm']}), {r['key']} (relative {r['key_relative']}), "
-              f"loop {' - '.join(loop['chords']) + ' (' + ' - '.join(loop['roman']) + ')' if loop else 'unclear'}; "
-              + ", ".join(r["summary"]))
+    todo = [f for f in files if args.redo or not (out / result_name(f)).exists()]
+    print(f"{len(files)} songs found, {len(files) - len(todo)} already measured, {len(todo)} to go "
+          f"({args.workers} at a time)")
 
-    if args.profile and results:
-        prof = build_profile(args.profile, results)
-        slug = "".join(c if c.isalnum() else "-" for c in args.profile.lower()).strip("-")
-        (out / f"profile-{slug}.json").write_text(json.dumps(prof, ensure_ascii=False, indent=2))
-        print(f"\nProfile {args.profile}: {json.dumps(prof, ensure_ascii=False)}")
+    results, failed = [], []
+    clip = args.clip or None
+    with ProcessPoolExecutor(max_workers=args.workers) as pool:
+        jobs = {pool.submit(_work, str(f), clip): f for f in todo}
+        for n, job in enumerate(as_completed(jobs), 1):
+            f = jobs[job]
+            try:
+                r = job.result()
+            except Exception as e:  # one broken file shouldn't stop a batch
+                failed.append(f.name)
+                print(f"[{n}/{len(todo)}] !! {f.name}: {e}")
+                continue
+            (out / result_name(f)).write_text(json.dumps(r, ensure_ascii=False, indent=2))
+            results.append(r)
+            loop = r["chord_loops"][0] if r["chord_loops"] else None
+            print(f"[{n}/{len(todo)}] {f.name}: {r['tempo_bpm']} BPM, {r['key']}, "
+                  f"loop {' - '.join(loop['chords']) if loop else 'unclear'}; " + ", ".join(r["summary"]))
+
+    if failed:
+        print(f"\n{len(failed)} files could not be read: " + ", ".join(failed[:10]) + (" ..." if len(failed) > 10 else ""))
+
+    if args.profile:
+        everything = [json.loads((out / result_name(f)).read_text()) for f in files if (out / result_name(f)).exists()]
+        if everything:
+            prof = build_profile(args.profile, everything)
+            slug = "".join(c if c.isalnum() else "-" for c in args.profile.lower()).strip("-")
+            (out / f"profile-{slug}.json").write_text(json.dumps(prof, ensure_ascii=False, indent=2))
+            print(f"\nProfile {args.profile}: {json.dumps(prof, ensure_ascii=False)}")
+
+    if not args.no_categories:
+        from categorize import categorize_folder
+        categorize_folder(out)
 
 
 if __name__ == "__main__":
+    warnings.filterwarnings("ignore")
     main()
