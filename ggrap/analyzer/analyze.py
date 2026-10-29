@@ -226,6 +226,8 @@ def describe(r: dict) -> list[str]:
     out.append("busy hi-hats (16ths or rolls)" if hp >= 3 else "steady hi-hats (8ths)" if hp >= 1.5 else "sparse top end")
     if r["half_time_feel"]:
         out.insert(0, "half-time feel (trap/drill style)")
+    if r["chord_loops"] and len(set(r["chord_loops"][0]["chords"])) == 1:
+        out.append("one-chord groove (the bass riff and drums carry the song)")
     out.append("heavy bass / 808" if r["bass_share"] >= 0.4 else "medium bass" if r["bass_share"] >= 0.2 else "light bass")
     out.append("drum-led" if r["drum_share"] >= 0.45 else "melody-led")
     out.append("lots of room for vocals" if r["vocal_range_share"] < 0.3 else "busy midrange, keep the melody simple under verses")
