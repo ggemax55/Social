@@ -1,12 +1,11 @@
 /* ================= Studio: sample-loop beat player, mixer, recorder, takes, DAW =================
    Inlined into the app's main script by build.py, so it shares ctx, state, toast, sessions and the rest. */
 var LE = null;
-const TRAPISH = new Set(['trap', 'drill', 'melodic', 'cloud', 'rage', 'phonk', 'grime', 'oriental', 'jersey', 'club']);
-const genFor = style => TRAPISH.has(style) ? 'trap' : 'boombap';
 const nearest = (list, v) => list.reduce((a, b) => Math.abs(b - v) < Math.abs(a - v) ? b : a);
 const PADC = ['var(--r1)', 'var(--r2)', 'var(--r3)', 'var(--r4)'];
 function b64ToBuf(b64) { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return u.buffer }
 async function beatManifest(gen) {
+  if (LE.specs[gen]) return bmManifest(LE.specs[gen]);
   if (window.GGRAP_BEATS) return window.GGRAP_BEATS[gen].manifest;
   const r = await fetch('beats/' + gen + '/manifest.json'); if (!r.ok) throw new Error('missing'); return r.json();
 }
@@ -20,7 +19,7 @@ function fmtTime(s) { s = Math.max(0, s); return Math.floor(s / 60) + ':' + Stri
 LE = {
   gen: null, man: {}, tempo: null, curTempo: null, bufs: {}, playing: false, cur: 'A', curStart: 0, nextStart: 0,
   nextId: null, locked: false, queue: null, mode: 'manual', chain: [], chainAt: 0, srcs: [], bars: [], barNo: 0,
-  out: null, recDest: null, pendingTempo: null, tk: null,
+  out: null, recDest: null, pendingTempo: null, tk: null, specs: {},
   init() {
     ensureCtx();
     if (!this.out) {
@@ -32,9 +31,10 @@ LE = {
     this.init();
     if (!this.man[gen]) this.man[gen] = await beatManifest(gen);
     const m = this.man[gen], t = nearest(m.tempos, tempo || m.default_bpm);
-    $('#lpNow').textContent = 'Loading beat…';
+    $('#lpNow').textContent = LE.specs[gen] ? 'Making your beat…' : 'Loading beat…';
     await this.loadTempo(gen, t);
     if (this.gen !== gen && this.playing) this.stop();
+    if (this.gen !== gen) for (const k of Object.keys(this.bufs)) if (!k.startsWith(gen + '/')) delete this.bufs[k]; // free old beats
     this.gen = gen; this.tempo = t; this.pendingTempo = null;
     renderLoopDeck(); renderPads(); announceMix();
   },
@@ -42,7 +42,7 @@ LE = {
     const m = this.man[gen];
     await Promise.all(m.versions.map(async v => {
       const k = gen + '/' + t + '/' + v.id;
-      if (!this.bufs[k]) this.bufs[k] = await decode(await beatBytes(gen, t, v.id, m.ext || 'flac'));
+      if (!this.bufs[k]) this.bufs[k] = this.specs[gen] ? await bmRender(this.specs[gen], v, t) : await decode(await beatBytes(gen, t, v.id, m.ext || 'flac'));
     }));
   },
   async setTempo(t) {
@@ -51,16 +51,17 @@ LE = {
     const s = curSess(); if (s) { s.loopTempo = t; saveSessions() }
     renderLoopDeck();
   },
-  loopSec(t) { return 16 * 60 / t },
+  barBeats() { return (this.gen && this.man[this.gen].barBeats) || 4 },
+  loopSec(t) { return 4 * this.barBeats() * 60 / t },
   startLoop(id, when, t) {
     const buf = this.bufs[this.gen + '/' + t + '/' + id], s = ctx.createBufferSource(), g = ctx.createGain();
     s.buffer = buf; s.connect(g).connect(this.out); s.start(when);
     this.srcs.push({ s, g, end: when + buf.duration });
     this.srcs = this.srcs.filter(x => x.end > ctx.currentTime - 0.1);
-    for (let i = 0; i < 4; i++) this.bars.push(when + i * 240 / t);
+    for (let i = 0; i < 4; i++) this.bars.push(when + i * this.barBeats() * 60 / t);
   },
   async play() {
-    if (!this.gen) { const s = curSess(); await this.setGen(s ? genFor(s.style) : 'boombap', s ? (s.loopTempo || s.bpm) : null) }
+    if (!this.gen) { const s = curSess(); await this.setGen(s ? sessGen(s) : previewGen(), s ? (s.loopTempo || s.bpm) : null) }
     if (state.playing) stop();
     if (DAW.playing) dawStop();
     this.init(); if (ctx.state === 'suspended') await ctx.resume();
@@ -115,6 +116,9 @@ function renderPads() {
   const m = LE.gen && LE.man[LE.gen]; if (!m) return;
   $('#pads').innerHTML = m.versions.map((v, i) => '<button class="pad" data-pad="' + v.id + '" style="--c:' + PADC[i] + '"><span class="badge" id="pb-' + v.id + '"></span><span class="pid">' + v.id + '</span><span class="pnm">' + esc(v.name) + '</span><span class="ptr">Ends with: ' + esc(v.transition) + '</span></button>').join('');
   $('#mixKey').textContent = m.style + ' · ' + m.key + ' · ' + m.tempos[0] + '–' + m.tempos[m.tempos.length - 1] + ' BPM';
+  const s = curSess(), src = s && (s.beatSrc || 'gen');
+  $$('[data-bsrc]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.bsrc === src)));
+  $('#newBeat').hidden = src !== 'gen';
 }
 function announceMix() {
   if (!$('#pads')) return;
@@ -139,7 +143,7 @@ function announceMix() {
 }
 function drawLoopBars() {
   if (LE.playing && ctx) {
-    const p = Math.max(0, ctx.currentTime - LE.curStart), bl = 240 / LE.curTempo;
+    const p = Math.max(0, ctx.currentTime - LE.curStart), bl = LE.barBeats() * 60 / LE.curTempo;
     $$('#lpBars i').forEach((el, i) => { el.style.width = Math.max(0, Math.min(1, (p - i * bl) / bl)) * 100 + '%' });
   } else $$('#lpBars i').forEach(el => { el.style.width = '0' });
   if (REC.on) $('#recTxt').textContent = fmtTime((performance.now() - REC.t0) / 1000);
@@ -457,6 +461,17 @@ document.addEventListener('click', async e => {
   if (t.closest('#dawRec')) { DAW.recording ? dawRecStop() : dawRecStart(); return }
   if (t.closest('#dawToStart')) { const was = DAW.playing; dawStop(); DAW.pos = 0; if (was) dawPlay(0); else dawUI(); return }
   if (t.closest('#dawSave')) { dawSave(); return }
+  if (b = t.closest('[data-bsrc]')) {
+    const s = curSess(); if (!s || (s.beatSrc || 'gen') === b.dataset.bsrc) return; const was = LE.playing;
+    s.beatSrc = b.dataset.bsrc; s.loopTempo = null; saveSessions();
+    await LE.setGen(sessGen(s), s.bpm); if (was) LE.play();
+    toast(s.beatSrc === 'gen' ? 'Using the beat made for this session' : 'Using the ready-made ' + LE.man[LE.gen].style + ' set'); return;
+  }
+  if (t.closest('#newBeat')) {
+    const s = curSess(); if (!s) return; const was = LE.playing;
+    s.beat = { seed: Math.floor(Math.random() * 1e9) }; s.loopTempo = null; saveSessions();
+    await LE.setGen(sessGen(s), s.bpm); if (was) LE.play(); toast('New beat made for this session'); return;
+  }
   if (b = t.closest('.recpick button')) { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); store.set('ggrap.recpick', { beat: recWant('Beat'), vocal: recWant('Vocal') }); return }
   if (b = t.closest('[data-hopen]')) { openProject(b.dataset.hopen); return }
   if (b = t.closest('[data-hdel]')) {

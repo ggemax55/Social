@@ -431,6 +431,10 @@ textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surfac
   <div class="panel mixer">
     <div class="row" style="justify-content:space-between">
       <div><h3>Beat versions</h3><span class="label" id="mixKey"></span></div>
+      <div class="row">
+        <div class="lseg" role="group" aria-label="Beat source"><button data-bsrc="gen" aria-pressed="true">Made for you</button><button data-bsrc="boombap" aria-pressed="false">Boom Bap set</button><button data-bsrc="trap" aria-pressed="false">Trap set</button></div>
+        <button class="btn small" id="newBeat">New beat</button>
+      </div>
       <div class="lseg" role="group" aria-label="How versions change">
         <button data-lmode="manual" aria-pressed="true">Tap to queue</button><button data-lmode="random" aria-pressed="false">Random</button><button data-lmode="chain" aria-pressed="false">Chain</button>
       </div>
@@ -1069,7 +1073,7 @@ function showTab(id){
   if(id==='session')renderSessHead();if(id==='sessions')renderSessions();if(id==='plan')renderPlan();
   $('#synthDeck').hidden=!tool||id==='saved';$('#loopDeck').hidden=tool&&id!=='saved';$('#lpBars').hidden=tool&&id!=='saved';
   if(tool&&LE&&LE.playing)LE.stop();if(!tool&&state.playing)stop();
-  if(id==='session'){const s=curSess();const g=genFor(s.style);if(LE.gen!==g)LE.setGen(g,s.loopTempo||s.bpm).catch(()=>toast('Beats could not load'));else{renderPads();announceMix()}renderTakes()}
+  if(id==='session'){const s=curSess();const g=sessGen(s);if(LE.gen!==g)LE.setGen(g,s.loopTempo||s.bpm).catch(e=>toast('The beat could not be made: '+e.message));else{renderPads();announceMix()}renderTakes()}
   if(id==='daw')dawUI();
 }
 $('#backBtn').addEventListener('click',()=>{location.hash=curSess()?'session':'styles'});
@@ -1567,7 +1571,7 @@ document.addEventListener('click',e=>{
   if(t.closest('#surprise')){const r=a=>a[Math.floor(Math.random()*a.length)],w=()=>1+Math.floor(Math.random()*10);
     vibe.sel=[{c:'style',id:r(VSTYLE)[0],w:w()},{c:'emotion',id:r(VEMO)[0],w:w()}];if(Math.random()<.6)vibe.sel.push({c:'artist',id:slug(r(VART)[0]),w:w()});
     vibe.key=Math.floor(Math.random()*12);vibeChanged();return}
-  if(t.closest('[data-vibeplay]')){const R=recipe();LE.setGen(genFor(R.S.id),R.bpm).then(()=>LE.play());return}
+  if(t.closest('[data-vibeplay]')){const R=recipe();LE.setGen(previewGen(),R.bpm).then(()=>LE.play());return}
   if(t.closest('#copyPrompt')){const txt=$('#sunoPrompt').textContent,sel=()=>{const r=document.createRange();r.selectNodeContents($('#sunoPrompt'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected. Press copy on your keyboard.')};try{navigator.clipboard.writeText(txt).then(()=>toast('Prompt copied'),sel)}catch(err){sel()}}
 });
 document.addEventListener('input',e=>{const i=e.target.dataset&&e.target.dataset.w;if(i===undefined)return;vibe.sel[+i].w=+e.target.value;e.target.nextElementSibling.textContent=e.target.value;store.set('ggrap.vibe',vibe);renderRecipe();if(state.playing&&state.vibe)applyVibe()});
@@ -1587,7 +1591,7 @@ function createSession(){
   vibe={sel:[],sample:vibe.sample,key:vibe.key};vtab='style';vibeChanged();
   openSession(s.id,true);toast('Session saved in Sessions. Start is clear for your next one.');
 }
-async function playSession(s){await LE.setGen(genFor(s.style),s.loopTempo||s.bpm);LE.play()}
+async function playSession(s){await LE.setGen(sessGen(s),s.loopTempo||s.bpm);LE.play()}
 function openSession(id,play,mode){
   const s=sessions.find(x=>x.id===id);if(!s)return;
   curId=id;store.set('ggrap.cur',id);if(mode)s.mode=mode;s.stats.opens++;s.last=Date.now();saveSessions();

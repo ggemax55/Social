@@ -104,6 +104,10 @@ rep("""  <div class="sdetail" id="sessHead"></div>
   <div class="panel mixer">
     <div class="row" style="justify-content:space-between">
       <div><h3>Beat versions</h3><span class="label" id="mixKey"></span></div>
+      <div class="row">
+        <div class="lseg" role="group" aria-label="Beat source"><button data-bsrc="gen" aria-pressed="true">Made for you</button><button data-bsrc="boombap" aria-pressed="false">Boom Bap set</button><button data-bsrc="trap" aria-pressed="false">Trap set</button></div>
+        <button class="btn small" id="newBeat">New beat</button>
+      </div>
       <div class="lseg" role="group" aria-label="How versions change">
         <button data-lmode="manual" aria-pressed="true">Tap to queue</button><button data-lmode="random" aria-pressed="false">Random</button><button data-lmode="chain" aria-pressed="false">Chain</button>
       </div>
@@ -173,7 +177,7 @@ rep("  if(id==='session')renderSessHead();if(id==='sessions')renderSessions();if
     "  if(id==='session')renderSessHead();if(id==='sessions')renderSessions();if(id==='plan')renderPlan();\n"
     "  $('#synthDeck').hidden=!tool||id==='saved';$('#loopDeck').hidden=tool&&id!=='saved';$('#lpBars').hidden=tool&&id!=='saved';\n"
     "  if(tool&&LE&&LE.playing)LE.stop();if(!tool&&state.playing)stop();\n"
-    "  if(id==='session'){const s=curSess();const g=genFor(s.style);if(LE.gen!==g)LE.setGen(g,s.loopTempo||s.bpm).catch(()=>toast('Beats could not load'));else{renderPads();announceMix()}renderTakes()}\n"
+    "  if(id==='session'){const s=curSess();const g=sessGen(s);if(LE.gen!==g)LE.setGen(g,s.loopTempo||s.bpm).catch(e=>toast('The beat could not be made: '+e.message));else{renderPads();announceMix()}renderTakes()}\n"
     "  if(id==='daw')dawUI();\n}")
 
 # ---------- engines: synth (training tools) and loops (sessions) never play at once
@@ -187,9 +191,9 @@ rep("""function fsStart(){
   if(!LE.playing)await LE.play();
   if(!LE.playing)return;""")
 rep("function playSession(s){const keep=vibe;vibe=s.vibe;const R=recipe();vibe=keep;setStyle(s.preset,s.bpm);state.vibe={prog:R.E.prog,key:s.vibe.key,sample:s.vibe.sample};start()}",
-    "async function playSession(s){await LE.setGen(genFor(s.style),s.loopTempo||s.bpm);LE.play()}")
+    "async function playSession(s){await LE.setGen(sessGen(s),s.loopTempo||s.bpm);LE.play()}")
 rep("if(t.closest('[data-vibeplay]')){applyVibe();start();toast(STYLES[state.style].label+' · '+state.bpm+' BPM · '+NOTES[vibe.key]);return}",
-    "if(t.closest('[data-vibeplay]')){const R=recipe();LE.setGen(genFor(R.S.id),R.bpm).then(()=>LE.play());return}")
+    "if(t.closest('[data-vibeplay]')){const R=recipe();LE.setGen(previewGen(),R.bpm).then(()=>LE.play());return}")
 rep("<span style=\"flex:1\"></span><button class=\"btn primary\" id=\"sessPlay\">▶ Play beat</button></div>'+",
     "</div>'+")
 

@@ -1,12 +1,16 @@
 """Build the GGRap studio app.
 
+    python ggrap/beats/fetch_samples.py                 # once
+    python ggrap/app/build_samples.py <samples.json>
     python ggrap/beats/generate.py boombap <beats> 80 85 90 95 100
     python ggrap/beats/generate.py trap <beats> 130 135 140 145 150
-    python ggrap/app/build.py <beats> <out_dir>
+    python ggrap/app/build.py <samples.json> <beats> <out_dir>
 
-Writes <out_dir>/GGRap.html: one file with the app and every beat loop inside
-(as Opus audio). Double-click it and it opens in Chrome, where the Record
-button can use the microphone. No server or install needed.
+Writes <out_dir>/GGRap.html: one file with the app, the beat maker with its
+instrument samples, and the ready-made Boom Bap and Trap beat sets (all Opus
+audio). Each session can use a beat made for it or one of the ready-made sets.
+Double-click it and it opens in Chrome, where the Record button can use the
+microphone. No server or install needed.
 """
 import base64
 import json
@@ -33,21 +37,25 @@ def opus(path: Path) -> bytes:
         return out.read_bytes()
 
 
-def main():
-    beats, out = Path(sys.argv[1]), Path(sys.argv[2])
-    out.mkdir(parents=True, exist_ok=True)
+def ready_made(beats: Path) -> dict:
+    """The ready-made beat sets (Boom Bap, Trap) rendered by ggrap/beats/generate.py at 5 tempos."""
     data = {}
     for gen in ("boombap", "trap"):
         man = json.loads((beats / gen / "manifest.json").read_text())
         man["ext"] = "ogg"
-        files = {}
-        for t in man["tempos"]:
-            for v in man["versions"]:
-                files[f"{t}/{v['id']}"] = base64.b64encode(opus(beats / gen / str(t) / f"{v['id']}.flac")).decode()
+        files = {f"{t}/{v['id']}": base64.b64encode(opus(beats / gen / str(t) / f"{v['id']}.flac")).decode()
+                 for t in man["tempos"] for v in man["versions"]}
         data[gen] = {"manifest": man, "files": files}
-        print(gen, len(files), "loops")
-    app = (HERE / "app.html").read_text().replace("/*STUDIO*/", (HERE / "studio.js").read_text())
-    embed = "<script>window.GGRAP_BEATS=" + json.dumps(data, separators=(",", ":")) + "</script>\n"
+    return data
+
+
+def main():
+    samples, beats, out = Path(sys.argv[1]), Path(sys.argv[2]), Path(sys.argv[3])
+    out.mkdir(parents=True, exist_ok=True)
+    code = (HERE / "studio.js").read_text() + "\n" + (HERE / "beatmaker.js").read_text()
+    app = (HERE / "app.html").read_text().replace("/*STUDIO*/", code)
+    embed = ("<script>window.GGRAP_SAMPLES=" + samples.read_text() + "</script>\n" +
+             "<script>window.GGRAP_BEATS=" + json.dumps(ready_made(beats), separators=(",", ":")) + "</script>\n")
     html = HEAD + embed + app + "\n</body></html>\n"
     (out / "GGRap.html").write_text(html)
     print("GGRap.html", round(len(html) / 1e6, 1), "MB")
