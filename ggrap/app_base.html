@@ -1,0 +1,1587 @@
+<title>GGRap 2.0</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+Armenian:wght@400;600;700&display=swap">
+<style>
+/* Layout: a sticky "beat deck" (transport + step lights) over a tabbed training room; every module can load a beat into the deck. */
+:root{
+  --bg:#ECEEF3; --surface:#FFFFFF; --surface-2:#E1E5EC; --fg:#151821; --muted:#596072; --line:#CFD4DD;
+  --apricot:#C9690F; --pom:#B02A40; --blue:#2B4EA2; --on-accent:#FFFFFF; --deck:#151821; --deck-fg:#F2F3F6; --deck-muted:#A3A9B8; --deck-line:#2C3140;
+  --r1:#C9690F; --r2:#2B4EA2; --r3:#B02A40; --r4:#23825A; --r5:#7444BE; --r6:#8C6A0E;
+  --display:"Big Shoulders Display","Noto Sans Armenian",Impact,"Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans","Noto Sans Armenian",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --hy:"Noto Sans Armenian","IBM Plex Sans",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1117; --surface:#181B23; --surface-2:#222632; --fg:#ECEEF2; --muted:#9AA1B3; --line:#2D3241;
+  --apricot:#F2A24F; --pom:#EE6B83; --blue:#8DA8F2; --on-accent:#17110A; --deck:#07080C; --deck-fg:#F2F3F6; --deck-muted:#9AA1B3; --deck-line:#242836;
+  --r1:#F2A24F; --r2:#8DA8F2; --r3:#EE6B83; --r4:#5CC995; --r5:#B796F2; --r6:#E2C25A; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1117; --surface:#181B23; --surface-2:#222632; --fg:#ECEEF2; --muted:#9AA1B3; --line:#2D3241;
+  --apricot:#F2A24F; --pom:#EE6B83; --blue:#8DA8F2; --on-accent:#17110A; --deck:#07080C; --deck-fg:#F2F3F6; --deck-muted:#9AA1B3; --deck-line:#242836;
+  --r1:#F2A24F; --r2:#8DA8F2; --r3:#EE6B83; --r4:#5CC995; --r5:#B796F2; --r6:#E2C25A; color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--deck)}
+.wrap{max-width:1080px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.02}
+h2{font-size:clamp(34px,6vw,52px);font-weight:900;text-transform:uppercase;letter-spacing:.01em}
+h3{font-size:24px;font-weight:700;text-transform:uppercase;letter-spacing:.02em}
+p{margin:0}
+.hy{font-family:var(--hy)}
+.muted{color:var(--muted)}
+.label{font-family:var(--mono);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--apricot);outline-offset:2px}
+
+/* hero */
+.hero{background:var(--deck);color:var(--deck-fg)}
+.hero .wrap{padding-block:28px 22px;display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 28px}
+.hero h1{font-size:clamp(64px,14vw,132px);font-weight:900;letter-spacing:-.01em;line-height:.82}
+.hero h1 span{color:var(--apricot)}
+.hero .sub{max-width:420px;color:var(--deck-muted);font-size:15px}
+.hero .sub b{color:var(--deck-fg);font-weight:600}
+.hero .hy-tag{font-family:var(--hy);font-weight:700;color:var(--deck-fg);font-size:18px;display:block;margin-bottom:6px}
+
+/* deck */
+.deck{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--deck);color:var(--deck-fg);border-bottom:1px solid var(--deck-line)}
+.deck .wrap{padding-block:10px 12px;display:grid;gap:10px}
+.deck-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.play{width:52px;height:52px;border-radius:50%;border:0;background:var(--apricot);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.play svg{width:20px;height:20px;fill:currentColor}
+.deck select,.deck input[type=number]{background:var(--deck-line);border:1px solid transparent;color:var(--deck-fg);border-radius:6px;padding:7px 9px}
+.deck label{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--deck-muted)}
+.bpm{display:flex;align-items:center;gap:8px}
+.bpm input[type=range]{width:min(180px,34vw);accent-color:var(--apricot)}
+.bpm output{font-family:var(--mono);font-size:22px;min-width:3ch;text-align:right;color:var(--deck-fg)}
+.barcount{margin-left:auto;font-family:var(--mono);color:var(--deck-muted);font-size:12px;letter-spacing:.08em;text-transform:uppercase;text-align:right}
+.barcount b{display:block;font-size:24px;color:var(--deck-fg);letter-spacing:0;font-weight:500}
+.lights{display:flex;gap:10px;flex-wrap:wrap}
+.lgroup{display:flex;gap:4px}
+.light{width:clamp(14px,4.4vw,26px);height:14px;border-radius:3px;background:var(--deck-line);position:relative;transition:background .06s}
+.light.acc::after{content:"";position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:var(--deck-muted)}
+.light.on{background:var(--apricot)}
+.light.on.acc::after{background:var(--on-accent)}
+.toggle{display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.toggle input{accent-color:var(--apricot)}
+.styleinfo{font-size:13px;color:var(--deck-muted)}
+
+/* tabs */
+.tabs-scroll{overflow-x:auto;border-bottom:1px solid var(--line);background:var(--bg)}
+.tabs{display:flex;gap:4px;padding-block:12px 0;min-width:max-content}
+.tab{border:0;background:none;padding:9px 12px 11px;border-bottom:3px solid transparent;font-weight:600;color:var(--muted);white-space:nowrap}
+.tab .n{font-family:var(--mono);font-size:11px;margin-right:6px;color:var(--muted)}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--apricot)}
+.tab[aria-selected="true"] .n{color:var(--apricot)}
+
+main .wrap{padding-block:30px 72px}
+section.mod{display:grid;gap:26px}
+.intro{display:grid;gap:10px;max-width:68ch}
+.intro p{font-size:16.5px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px;display:grid;gap:12px;align-content:start;min-width:0}
+.panel.flat{background:transparent;border:0;padding:0}
+.tip{display:grid;gap:4px;padding:14px 16px;border-left:3px solid var(--line);background:var(--surface)}
+.tip b{font-weight:600}
+ul.clean{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+ol.steps{margin:0;padding-left:22px;display:grid;gap:6px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;font-weight:600;font-size:14px}
+.btn:hover{border-color:var(--fg)}
+.btn.primary{background:var(--apricot);border-color:var(--apricot);color:var(--on-accent)}
+.btn.small{padding:4px 10px;font-size:13px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.field{display:grid;gap:4px}
+.field select,.field input{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:7px 9px}
+
+/* lyric blocks */
+.lyric{display:grid;gap:10px}
+.bar{display:grid;gap:1px}
+.bar .l1{font-weight:600;font-size:17px}
+.bar .l1.hy{font-size:18px}
+.bar .tr{font-family:var(--mono);font-size:12.5px;color:var(--apricot)}
+.bar .en{font-size:13.5px;color:var(--muted)}
+.end{border-bottom:2px solid var(--apricot)}
+.end.b{border-bottom-color:var(--blue)}
+.end.c{border-bottom-color:var(--pom)}
+
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:6px;padding:5px 9px;text-align:left;display:grid;line-height:1.25}
+.chip .w{font-family:var(--hy);font-weight:600;font-size:15px}
+.chip .t{font-family:var(--mono);font-size:11px;color:var(--apricot)}
+.chip .m{font-size:11.5px;color:var(--muted)}
+button.chip:hover{border-color:var(--apricot)}
+.fam{display:grid;gap:8px}
+.fam h4{margin:0;font-family:var(--hy);font-size:20px;display:flex;gap:10px;align-items:baseline}
+.fam h4 small{font-family:var(--mono);font-size:12px;color:var(--muted);font-weight:400}
+
+/* freestyle stage */
+.stage{background:var(--deck);color:var(--deck-fg);border-radius:12px;padding:22px;display:grid;gap:14px;min-height:260px;align-content:space-between}
+.stage .top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--deck-muted)}
+.bigword{font-family:var(--display);font-weight:900;font-size:clamp(54px,12vw,112px);line-height:.9;text-transform:uppercase;overflow-wrap:anywhere}
+.bigword.hy{font-family:var(--hy);font-weight:700;text-transform:none;font-size:clamp(44px,10vw,92px)}
+.wordmeta{font-family:var(--mono);color:var(--apricot);font-size:14px;min-height:1.4em}
+.next{color:var(--deck-muted);font-size:14px}
+.next b{color:var(--deck-fg);font-weight:600}
+.timer{font-family:var(--mono);font-size:28px;color:var(--deck-fg)}
+.history{display:flex;flex-wrap:wrap;gap:6px}
+.history span{font-size:12.5px;padding:2px 8px;border-radius:4px;background:var(--surface-2);color:var(--muted)}
+
+/* writing pad */
+.padgrid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+@media (max-width:760px){.padgrid{grid-template-columns:minmax(0,1fr)}}
+textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;font-family:var(--hy);font-size:16px;line-height:1.75}
+.analysis{display:grid;gap:4px;font-size:13.5px}
+.aline{display:grid;grid-template-columns:2.2ch 2.2em minmax(0,1fr) 3ch;gap:8px;align-items:center}
+.aline .num{font-family:var(--mono);color:var(--muted);font-size:11.5px;text-align:right}
+.tag{display:inline-grid;place-items:center;width:2em;height:1.6em;border-radius:4px;font-family:var(--mono);font-weight:500;font-size:12px;color:var(--on-accent);background:var(--muted)}
+.tag.none{background:transparent;color:var(--muted);border:1px dashed var(--line)}
+.sylbar{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.sylbar i{display:block;height:100%;background:var(--fg);opacity:.55}
+.aline .cnt{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+.scheme{font-family:var(--mono);font-size:20px;letter-spacing:.12em;overflow-wrap:anywhere}
+.status{font-size:13px;font-weight:600}
+.status.ok{color:var(--r4)}
+.status.no{color:var(--pom)}
+
+/* fast lane */
+.lane{display:flex;gap:6px}
+.slot{flex:1;height:46px;border-radius:6px;background:var(--surface-2);display:grid;place-items:center;font-family:var(--mono);color:var(--muted);transition:background .04s}
+.slot.on{background:var(--apricot);color:var(--on-accent)}
+.stat{font-family:var(--display);font-weight:900;font-size:56px;line-height:.9}
+.stat small{font-family:var(--mono);font-size:12px;font-weight:500;color:var(--muted);letter-spacing:.06em;text-transform:uppercase;display:block;margin-top:4px}
+.twister{display:grid;gap:4px;padding:12px 0;border-top:1px solid var(--line)}
+.twister:first-child{border-top:0;padding-top:0}
+
+/* counts for dance meters */
+.count{display:flex;gap:6px;flex-wrap:wrap}
+.count span{min-width:34px;padding:6px 0;text-align:center;border-radius:5px;font-family:var(--mono);font-size:13px;background:var(--surface-2);color:var(--muted)}
+.count span.d{background:var(--pom);color:var(--on-accent)}
+.count span.t{background:var(--blue);color:var(--on-accent)}
+.count .gap{min-width:6px;background:none;padding:0}
+
+/* plan */
+.week{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+@media (max-width:700px){.week{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.day{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px;display:grid;gap:4px;text-align:left}
+.day .d{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.day b{font-size:14px;line-height:1.25}
+.day.today{border-color:var(--apricot);box-shadow:inset 0 0 0 1px var(--apricot)}
+.day.today .d{color:var(--apricot)}
+.check{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:10px;align-items:start;padding:10px 0;border-top:1px solid var(--line)}
+.check:first-child{border-top:0}
+.check input{width:18px;height:18px;margin-top:3px;accent-color:var(--apricot)}
+.check .min{font-family:var(--mono);font-size:12px;color:var(--muted)}
+.check.done span{color:var(--muted);text-decoration:line-through}
+.streak{font-family:var(--display);font-weight:900;font-size:64px;line-height:.85}
+
+/* style picker */
+.skills{display:flex;flex-wrap:wrap;gap:6px}
+.skills span{font-size:13px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+.tierhead{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.sgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,200px),1fr));gap:10px}
+.scard{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:14px;text-align:left;display:grid;gap:6px;align-content:start;min-width:0}
+.scard:hover{border-color:var(--fg)}
+.scard .sn{font-family:var(--display);font-weight:900;font-size:26px;line-height:.95;text-transform:uppercase}
+.scard .sb{font-family:var(--mono);font-size:11.5px;color:var(--apricot)}
+.scard .sv{font-size:13.5px;color:var(--muted)}
+.scard[aria-pressed="true"]{border-color:var(--apricot);box-shadow:inset 0 0 0 2px var(--apricot)}
+.scard[aria-pressed="true"] .sn::after{content:" ✓";color:var(--apricot)}
+.sdetail{background:var(--deck);color:var(--deck-fg);border-radius:12px;padding:22px;display:grid;gap:16px}
+.sdetail .big{font-family:var(--display);font-weight:900;font-size:clamp(44px,9vw,76px);line-height:.88;text-transform:uppercase}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:14px 22px}
+.facts div{display:grid;gap:2px;min-width:0}
+.facts .k{font-family:var(--mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--deck-muted)}
+.sdetail .drill{border-left:3px solid var(--apricot);padding:4px 0 4px 14px;font-size:17px;font-weight:600}
+.sdetail .btn{background:transparent;color:var(--deck-fg);border-color:var(--deck-line)}
+.sdetail .btn:hover{border-color:var(--deck-fg)}
+.sdetail .btn.primary{background:var(--apricot);border-color:var(--apricot);color:var(--on-accent)}
+.mystyle{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--deck-muted)}
+.mystyle b{color:var(--apricot);font-weight:500}
+
+.ticker{display:flex;align-items:center;gap:10px;min-width:0;border-bottom:1px solid var(--deck-line);padding-bottom:9px}
+.tk-label{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--on-accent);background:var(--apricot);padding:3px 7px;border-radius:4px;flex:none}
+.tk-view{flex:1;min-width:0;overflow:hidden;mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent);-webkit-mask-image:linear-gradient(90deg,transparent,#000 24px,#000 calc(100% - 24px),transparent)}
+.tk-track{display:flex;gap:28px;width:max-content;animation:tk var(--tk-dur,90s) linear infinite}
+.ticker:hover .tk-track,.ticker:focus-within .tk-track{animation-play-state:paused}
+@keyframes tk{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.tip-btn{border:0;background:none;color:var(--deck-fg);padding:2px 0;font-size:13.5px;white-space:nowrap;display:inline-flex;gap:8px;align-items:baseline}
+.tip-btn .tg{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--apricot)}
+.tip-btn .st{color:var(--deck-muted)}
+.tip-btn.saved .st{color:var(--apricot)}
+.tip-btn:hover .tx{text-decoration:underline;text-underline-offset:3px}
+.tk-saved{flex:none;border:1px solid var(--deck-line);background:none;color:var(--deck-fg);border-radius:999px;padding:3px 10px;font-size:12.5px;font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){.tk-view{overflow-x:auto;mask-image:none;-webkit-mask-image:none}.tk-track{animation:none}}
+.savedlist{display:grid;gap:8px}
+.saveditem{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:start;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:12px 14px}
+.saveditem .tg{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--apricot)}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.mode{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:20px;text-align:left;display:grid;gap:6px}
+.mode:hover{border-color:var(--fg)}
+.mode .mn{font-family:var(--display);font-weight:900;font-size:44px;line-height:.9;text-transform:uppercase}
+.mode .mh{font-family:var(--hy);font-weight:600;color:var(--apricot)}
+.mode[aria-pressed="true"]{border-color:var(--apricot);box-shadow:inset 0 0 0 2px var(--apricot)}
+.vibegrid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:860px){.vibegrid{grid-template-columns:minmax(0,1fr)}}
+.vtabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;background:var(--surface-2);border-radius:10px;padding:4px}
+.vtabs button{border:0;background:none;border-radius:7px;padding:9px 6px;font-weight:600;font-size:14px;color:var(--muted)}
+.vtabs button[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.vtabs .cnt{font-family:var(--mono);font-size:11px;background:var(--apricot);color:var(--on-accent);border-radius:999px;padding:1px 6px;margin-left:4px}
+.vpane{display:grid;gap:10px;margin-top:12px}
+.scard .on{font-family:var(--mono);font-size:11px;color:var(--apricot)}
+.regions{display:flex;flex-wrap:wrap;gap:6px}
+.regions button{border:1px solid var(--line);background:none;border-radius:999px;padding:4px 10px;font-size:13px}
+.regions button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.mixrow{display:grid;grid-template-columns:minmax(0,1fr) minmax(90px,1.2fr) 3.5ch auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.mixrow:first-child{border-top:0}
+.mixrow .nm{display:grid;min-width:0}
+.mixrow .nm b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mixrow .nm small{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mixrow input{accent-color:var(--apricot);width:100%}
+.mixrow output{font-family:var(--mono);font-size:15px;text-align:right}
+.x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1;padding:4px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.seg button{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px;text-align:left;display:grid;gap:2px;font-weight:600}
+.seg button small{font-weight:400;font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{border-color:var(--apricot);box-shadow:inset 0 0 0 2px var(--apricot)}
+@media (max-width:480px){.seg{grid-template-columns:minmax(0,1fr)}}
+.recipe{position:sticky;top:calc(env(safe-area-inset-top,0px) + 190px)}
+@media (max-width:860px){.recipe{position:static}}
+.mixbar{display:flex;height:10px;border-radius:5px;overflow:hidden;gap:2px}
+.mixbar i{display:block;height:100%}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12.5px;color:var(--deck-muted)}
+.legend span::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;background:var(--c)}
+.ichips{display:flex;flex-wrap:wrap;gap:6px}
+.ichips span{font-size:13px;padding:3px 9px;border-radius:999px;border:1px solid var(--deck-line)}
+.ichips span.core{border-color:var(--apricot);color:var(--deck-fg)}
+.ess{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:4px 14px;font-size:13.5px}
+.ess span::before{content:"✓ ";color:var(--apricot);font-weight:700}
+.prompt{font-family:var(--mono);font-size:12.5px;background:var(--deck-line);border-radius:8px;padding:10px 12px;line-height:1.5;overflow-wrap:anywhere}
+.sdetail select{background:var(--deck-line);color:var(--deck-fg);border:0;border-radius:6px;padding:4px 6px}
+.hint{font-size:13px;color:var(--apricot)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.backbar{margin-bottom:18px}
+.sesslist{display:grid;gap:10px}
+.sess{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px 16px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+@media (max-width:620px){.sess{grid-template-columns:minmax(0,1fr)}}
+.sess-main{display:grid;gap:2px;min-width:0}
+.sess-name{font-family:var(--display);font-weight:900;font-size:26px;line-height:1;text-transform:uppercase;overflow-wrap:anywhere}
+.btn[aria-pressed="true"]{background:var(--apricot);border-color:var(--apricot);color:var(--on-accent)}
+.sdetail .btn[aria-pressed="true"]{background:var(--apricot);border-color:var(--apricot);color:var(--on-accent)}
+.sessname{font-family:var(--display);font-weight:900;font-size:clamp(34px,7vw,60px);line-height:1;text-transform:uppercase;background:transparent;border:0;border-bottom:1px dashed var(--deck-line);color:var(--deck-fg);width:100%;padding:2px 0}
+.sessname:focus{outline:none;border-bottom-color:var(--apricot)}
+.empty{padding:28px;border:1px dashed var(--line);border-radius:10px;text-align:center;display:grid;gap:10px;justify-items:center}
+.obj .why{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--apricot);display:block}
+.pcard{display:grid;gap:10px;min-width:0}
+.pcard .topic{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.75}
+.pcard .main{font-family:var(--display);font-weight:900;font-size:clamp(48px,11vw,96px);line-height:.9;text-transform:uppercase;overflow-wrap:anywhere}
+.pcard .main.hy{font-family:var(--hy);text-transform:none;font-weight:700;font-size:clamp(40px,9vw,80px)}
+.pcard .tr{font-family:var(--mono);font-size:13px;color:var(--apricot)}
+.rchips{display:flex;flex-wrap:wrap;gap:6px}
+.rchips span{border:1px solid color-mix(in srgb,currentColor 35%,transparent);border-radius:8px;padding:4px 10px;font-weight:600;display:grid;line-height:1.25}
+.rchips small,.r5 small{font-family:var(--mono);font-weight:400;font-size:11px;color:var(--apricot)}
+.r5{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:8px}
+.r5 .col{border:1px solid color-mix(in srgb,currentColor 25%,transparent);border-radius:8px;padding:9px;display:grid;gap:3px;align-content:start;min-width:0;overflow-wrap:anywhere}
+.r5 .col.focus{border-color:var(--apricot);box-shadow:inset 0 0 0 1px var(--apricot)}
+.r5 .col b{font-size:18px;font-weight:700}
+.r5 .col span{font-size:13.5px;opacity:.9;display:grid}
+.pic svg{width:100%;height:auto;border-radius:10px;display:block;max-width:620px}
+.pic .ptitle{font-family:var(--display);font-weight:900;font-size:clamp(30px,6vw,50px);text-transform:uppercase;line-height:.95}
+.pic .ptitle.hy{font-family:var(--hy);text-transform:none;font-weight:700}
+.pic .pscen{font-size:16px;max-width:60ch}
+.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.light,.slot,.toast{transition:none}}
+</style>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>GG<span>Rap</span> 2.0</h1>
+    <p class="sub"><span class="hy-tag">Ռեփի մարզասրահ</span>Your rap training room. <b>Pick a beat, pick a drill, go.</b> Freestyle, writing, Armenian and English bars, fast flow, motivation, and dance floor energy from club to Kochari.</p>
+  </div>
+</header>
+
+<div class="deck" id="deck">
+  <div class="wrap">
+    <div class="ticker" id="ticker" aria-label="Tips. Click a tip to save it.">
+      <span class="tk-label">Tips</span>
+      <div class="tk-view"><div class="tk-track" id="tkTrack"></div></div>
+      <button class="tk-saved" id="tkSaved" data-goto="saved">★ 0</button>
+    </div>
+    <div class="deck-row">
+      <button class="play" id="playBtn" aria-label="Play beat"><svg viewBox="0 0 20 20" id="playIcon"><path d="M5 3l12 7-12 7z"/></svg></button>
+      <label for="styleSel">Beat
+        <select id="styleSel"></select>
+      </label>
+      <div class="bpm">
+        <label for="bpmRange">BPM</label>
+        <input type="range" id="bpmRange" min="60" max="180" step="1" value="90">
+        <output id="bpmOut" for="bpmRange">90</output>
+      </div>
+      <label for="clickSel" id="clickWrap">Click
+        <select id="clickSel">
+          <option value="0">Off</option>
+          <option value="2">8ths (2)</option>
+          <option value="3">Triplets (3)</option>
+          <option value="4">16ths (4)</option>
+        </select>
+      </label>
+      <label class="toggle" for="droneChk" id="droneWrap" hidden><input type="checkbox" id="droneChk" checked> Drone</label>
+      <label class="toggle" for="accelChk" id="accelWrap" hidden><input type="checkbox" id="accelChk"> Speed up</label>
+      <div class="barcount">Bar<b id="barNum">0</b></div>
+    </div>
+    <div class="lights" id="lights" aria-hidden="true"></div>
+    <div class="styleinfo" id="styleInfo"></div>
+  </div>
+</div>
+
+<nav class="tabs-scroll" aria-label="Training modules">
+  <div class="wrap"><div class="tabs" role="tablist" id="tabs"></div></div>
+</nav>
+
+<main>
+<div class="wrap">
+<div class="backbar" id="backbar" hidden><button class="btn small" id="backBtn">← Back</button></div>
+
+<!-- SESSION (header shown above the Freestyle or Writing tools) -->
+<section class="mod" id="session" role="tabpanel" hidden>
+  <div class="sdetail" id="sessHead"></div>
+</section>
+
+<!-- SESSIONS -->
+<section class="mod" id="sessions" role="tabpanel" hidden>
+  <div class="intro"><span class="label">Your library</span><h2>Sessions</h2><p>Every session you create on Start lands here. Star your favourites and send sessions to Daily. Your daily plan builds 3 objectives from them.</p></div>
+  <div class="regions" id="sessFilter"><button data-sf="all" aria-pressed="true">All</button><button data-sf="fav" aria-pressed="false">★ Favourites</button><button data-sf="daily" aria-pressed="false">☀ In Daily</button></div>
+  <div class="sesslist" id="sessList"></div>
+</section>
+
+<!-- STYLES -->
+<section class="mod" id="styles" role="tabpanel">
+  <div class="intro">
+    <span class="label">Step 1</span>
+    <h2>What are you doing today?</h2>
+    <div class="skills" aria-label="Core rapper skills"><span>Breath control</span><span>Timing and flow</span><span>Rhymes</span><span>Delivery and voice</span><span>Writing</span><span>Freestyle</span><span>Stage presence</span><span>Recording</span></div>
+  </div>
+  <div class="modes" id="modes">
+    <button class="mode" data-mode="freestyle"><span class="mn">Freestyle</span><span class="mh">Իմպրովիզ</span><span class="muted">Off the top of your head. The beat plays, words drop, you keep going.</span></button>
+    <button class="mode" data-mode="writing"><span class="mn">Write</span><span class="mh">Գրել</span><span class="muted">Pen to pad. Build bars, check your rhymes, make every line hit.</span></button>
+  </div>
+  <div class="intro"><span class="label">Step 2</span><h2>Choose your vibe</h2><p class="muted">Mix styles, emotions and type beats. In Mix, set how close the beat should be to each pick, from 1 to 10. Tap a picked card again to remove it.</p><div class="row"><button class="btn small" id="clearAll">Clear all picks</button></div></div>
+  <div class="vibegrid">
+    <div>
+      <div class="vtabs" role="tablist" id="vtabs">
+        <button role="tab" data-vt="style" aria-selected="true">Style</button>
+        <button role="tab" data-vt="emotion" aria-selected="false">Emotion</button>
+        <button role="tab" data-vt="artist" aria-selected="false">Type beat</button>
+        <button role="tab" data-vt="mix" aria-selected="false">Mix<span class="cnt" id="mixCount">0</span></button>
+      </div>
+      <div class="vpane" id="vpane"></div>
+      <div class="field" style="margin-top:18px"><span class="label">Samples</span>
+        <div class="seg" id="sampleSeg">
+          <button data-sample="0">No sample<small>Original arrangement, all played or programmed</small></button>
+          <button data-sample="0.5">50 / 50<small>One sampled loop over played drums and bass</small></button>
+          <button data-sample="1">All sampled<small>Built from chopped samples and a drum break</small></button>
+        </div>
+      </div>
+    </div>
+    <div class="sdetail recipe" id="recipe"></div>
+  </div>
+</section>
+
+<!-- SAVED -->
+<section class="mod" id="saved" role="tabpanel" hidden>
+  <div class="intro"><span class="label">Your collection</span><h2>Saved tips</h2><p>Tap any tip in the bar at the top to save it here. Tap it again to remove it.</p></div>
+  <div class="savedlist" id="savedList"></div>
+</section>
+
+<!-- PLAN -->
+<section class="mod" id="plan" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label" id="todayLbl"></span>
+    <h2>Today's 3 objectives</h2>
+    <p>Built from the sessions you send to Daily, then your favourites, then what you practiced lately. Finish all three and the day counts.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <div id="objs"></div>
+      <div class="row"><button class="btn small" id="newObjs">Give me different objectives</button></div>
+    </div>
+    <div class="panel">
+      <span class="label">Days practiced on this device</span>
+      <div class="streak" id="daysCount">0</div>
+      <p class="muted">A day counts when you finish an objective or a freestyle round.</p>
+      <span class="label">In your daily pool</span>
+      <div class="chips" id="dailyPool"></div>
+    </div>
+  </div>
+</section>
+
+<!-- FREESTYLE -->
+<section class="mod" id="freestyle" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Session tool</span>
+    <h2>Freestyle</h2>
+    <p>Freestyle is a reflex. You train it by forcing your mouth to keep going while new information arrives. Words drop on the beat; you have to work each one into your next bar.</p>
+  </div>
+  <div class="stage" id="stage">
+    <div class="top"><span id="fsStatus">Ready</span><span>Bars: <span id="fsBars">0</span></span></div>
+    <div id="fsCard"></div>
+    <div class="row" style="justify-content:space-between">
+      <div class="next" id="fsNextWrap">Next: <b id="fsNext">…</b></div>
+      <div class="timer" id="fsTimer">2:00</div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="field"><label class="label" for="fsSrc">What drops</label>
+      <select id="fsSrc" data-src="1"><option value="words">Words</option><option value="pics">Pictures</option><option value="r1">1 word + 5 rhymes</option><option value="r5">5 words × 5 rhymes</option></select></div>
+    <div class="field"><label class="label" for="fsLang">Language</label>
+      <select id="fsLang" data-lang="1"><option value="en">English</option><option value="hy">Armenian · Հայերեն</option><option value="mix">Mixed</option></select></div>
+    <div class="field"><label class="label" for="fsEvery">Change every <output id="fsEveryOut">4</output> bars</label>
+      <input type="range" id="fsEvery" min="2" max="16" step="1" value="4" style="accent-color:var(--apricot)"></div>
+    <div class="field"><label class="label" for="fsLen">Round</label>
+      <select id="fsLen"><option value="60">1 min</option><option value="120" selected>2 min</option><option value="180">3 min</option><option value="300">5 min</option></select></div>
+    <button class="btn primary" id="fsStart">Start round</button>
+    <button class="btn" id="fsStop">Stop</button>
+  </div>
+  <div class="history" id="fsHistory" aria-label="Words used this round"></div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Topic roulette</h3>
+      <p class="muted">Rap 8 bars on the topic. No stopping, no "uhh". If you blank, repeat your last line with a new ending.</p>
+      <div style="font-size:20px;font-weight:600" id="topic">The city at 3 AM</div>
+      <div class="row"><button class="btn" id="topicBtn">New topic</button></div>
+    </div>
+    <div class="panel">
+      <h3>Freestyle drills</h3>
+      <ul class="clean">
+        <li><b>Room scan.</b> Rap about 5 objects you can see, one per bar.</li>
+        <li><b>Rhyme ahead.</b> Pick the rhyme word first, then build the line backwards to land on it.</li>
+        <li><b>Story mode.</b> Who, where, what went wrong, how it ends. 16 bars.</li>
+        <li><b>Filler swap.</b> When stuck, say the beat's count ("one, two, I'm back") instead of "uhh". Stay on time.</li>
+        <li><b>Mirror battle.</b> Diss your own last verse. Self-roasts build punchlines fast.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- WRITING -->
+<section class="mod" id="writing" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Session tool</span>
+    <h2>Writing</h2>
+    <p>Write in Armenian or English. The pad counts syllables per line and tags line endings that rhyme with the same letter, so you can see your scheme and keep bars even.</p>
+  </div>
+  <div class="panel">
+    <div class="row" style="justify-content:space-between">
+      <h3>Inspiration</h3>
+      <div class="row">
+        <select id="wSrc" data-src="1" aria-label="Inspiration type"><option value="words">Words</option><option value="pics">Pictures</option><option value="r1">1 word + 5 rhymes</option><option value="r5">5 words × 5 rhymes</option></select>
+        <select id="wLang" data-lang="1" aria-label="Language"><option value="en">English</option><option value="hy">Armenian · Հայերեն</option><option value="mix">Mixed</option></select>
+        <button class="btn small primary" id="wNew">New</button>
+      </div>
+    </div>
+    <div id="wCard"></div>
+  </div>
+  <div class="padgrid">
+    <div class="panel flat">
+      <label class="label" for="pad">Writing pad · one bar per line</label>
+      <textarea id="pad" spellcheck="false"></textarea>
+      <div class="row">
+        <button class="btn small" id="padSampleEn">Sample: English</button>
+        <button class="btn small" id="padSampleHy">Sample: Armenian</button>
+        <button class="btn small" id="padCopy">Copy</button>
+        <button class="btn small" id="padClear">Clear</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between">
+        <span class="label">Your scheme</span>
+        <div class="field"><label class="label" for="schemeTarget">Target</label>
+          <select id="schemeTarget"><option value="">Any</option><option value="AABB">AABB (couplets)</option><option value="ABAB">ABAB (alternate)</option><option value="AAAA">AAAA (monorhyme)</option><option value="ABBA">ABBA (enclosed)</option></select></div>
+      </div>
+      <div class="scheme" id="scheme">—</div>
+      <div class="status" id="schemeStatus"></div>
+      <div class="analysis" id="analysis"></div>
+      <p class="muted" style="font-size:12.5px">Syllables are estimated. Armenian often hides the ը sound in clusters (սրտում is said "sər-tum"), so add one where you hear it. The rhyme tag compares the last vowel sound and what follows it.</p>
+    </div>
+  </div>
+  <div class="grid3">
+    <div class="tip"><b>Keep bars even</b><span>Lines in a verse should land within 2 to 3 syllables of each other at the same tempo. A long line forces you to rush.</span></div>
+    <div class="tip"><b>Punchline = setup + twist</b><span>Bar 1 sets a normal image. Bar 2 flips a word's meaning. Put the twist word at the very end.</span></div>
+    <div class="tip"><b>Show, don't tell</b><span>"I was broke" is weak. "Splitting one shawarma for two days" is a picture.</span></div>
+    <div class="tip"><b>Write 16, keep 8</b><span>Write twice what you need, then cut the weakest half. Editing is where verses get good.</span></div>
+  </div>
+  <div class="panel">
+    <h3>Rewrite drill</h3>
+    <p class="muted">Take a flat line and upgrade it three ways: add an image, add an internal rhyme, add a double meaning.</p>
+    <div class="lyric">
+      <div class="bar"><span class="label">Flat</span><span class="l1">I work hard every day</span></div>
+      <div class="bar"><span class="label">Image</span><span class="l1">Alarm at five, my shadow clocks in before me</span></div>
+      <div class="bar"><span class="label">Internal rhyme</span><span class="l1">Grind in the cold, mind on the gold, I never fold</span></div>
+      <div class="bar"><span class="label">Double meaning</span><span class="l1">I put in work so long, my bars got overtime</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ARMENIAN -->
+<section class="mod" id="armenian" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Training tool</span>
+    <h2 class="hy">Հայերեն ռեփ</h2>
+    <p>Armenian is built for rap. Stress almost always falls on the last syllable, so every line ends with a natural punch. Use that: put your strongest word last and hit it on the snare.</p>
+  </div>
+  <div class="grid3">
+    <div class="tip"><b>Last syllable wins</b><span>Երևա<u>ն</u>, Հայաստա<u>ն</u>, հաղթանա<u>կ</u>. The stress is at the end, so line endings punch on their own. A final ը is the exception and stays unstressed.</span></div>
+    <div class="tip"><b>Cheap vs. strong rhymes</b><span>Endings like -ում, -ել, -ություն rhyme with thousands of words. That is easy, so the crowd won't feel it. Rhyme the root too: քար / դար / պայքար beats գնում / խոսում.</span></div>
+    <div class="tip"><b>Mix carefully</b><span>Yerevan slang and English words add flavor. Keep one language per punchline so the twist lands clearly.</span></div>
+  </div>
+  <div class="panel flat">
+    <div class="row" style="justify-content:space-between"><h3>Rhyme families</h3><span class="muted" style="font-size:13px">Tap a word to add it to the writing pad</span></div>
+    <div class="grid2" id="families"></div>
+  </div>
+  <div class="panel">
+    <span class="label">Example verse · original · rhymes on -ար and -ակ</span>
+    <div class="lyric" id="hyVerse"></div>
+    <p class="muted">Drill: keep the rhyme sounds and write your own 4 lines about your street, your family, or your goal.</p>
+  </div>
+</section>
+
+<!-- ENGLISH -->
+<section class="mod" id="english" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Training tool</span>
+    <h2>English rap</h2>
+    <p>English stress moves around inside words, so flow depends on where the strong syllables fall. Level up from one-syllable rhymes to chains of sounds that repeat across the whole bar.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <h3>Rhyme types, weakest to strongest</h3>
+      <ul class="clean">
+        <li><b>Perfect:</b> game / name. Clean but predictable.</li>
+        <li><b>Slant:</b> home / alone / phone / cold. Close vowels, more freedom.</li>
+        <li><b>Internal:</b> rhymes inside the line, not only at the end.</li>
+        <li><b>Multisyllabic:</b> "go the distance / no assistance / so persistent". Two or more syllables matching in a row.</li>
+        <li><b>Chain:</b> one sound family carried across 4+ bars.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <h3>Rhyme ladder</h3>
+      <p class="muted">30 seconds. Say as many rhymes for the word as you can, out loud, on beat. Tap +1 for each.</p>
+      <div class="row" style="justify-content:space-between;align-items:flex-end">
+        <div><span class="label">Seed word</span><div class="stat" id="ladWord">flow</div></div>
+        <div style="text-align:right"><div class="stat" id="ladCount">0</div><span class="label" id="ladTime">30s</span></div>
+      </div>
+      <div class="row"><button class="btn primary" id="ladStart">Start 30s</button><button class="btn" id="ladPlus">+1 rhyme</button><button class="btn" id="ladNew">New word</button></div>
+      <p class="muted" style="font-size:13px" id="ladBest">Best: —</p>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Multisyllabic chains to study</h3>
+    <div class="grid3" id="chains"></div>
+  </div>
+  <div class="panel">
+    <span class="label">Example verse · original · multis on "-ay in the / -ame"</span>
+    <div class="lyric">
+      <div class="bar"><span class="l1">I been <span class="end">stayin' in my lane</span>, turnin' <span class="end">pain into gain</span></span></div>
+      <div class="bar"><span class="l1">Every cloud that I <span class="end">came through was rain</span> on the <span class="end">same old frame</span></span></div>
+      <div class="bar"><span class="l1">Now they <span class="end b">callin' my name</span> like they <span class="end b">all in the game</span></span></div>
+      <div class="bar"><span class="l1">But I'm <span class="end b">built from the flame</span>, and I <span class="end b">still feel the same</span></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FAST -->
+<section class="mod" id="fast" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Training tool</span>
+    <h2>Fast rap</h2>
+    <p>Speed is clean syllables per second, held for a long time. Build it like a gym lift: slow and perfect first, then add 5 BPM only after a clean run.</p>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <span class="label">Syllable lane · follows the deck</span>
+      <div class="lane" id="lane"></div>
+      <div class="row" style="gap:24px">
+        <div class="stat" id="sps">0<small>syllables / second</small></div>
+        <div class="stat" id="spb">4<small>per beat</small></div>
+      </div>
+      <p class="muted">Rap one syllable per lit box. Turn the click on in the deck to hear the grid.</p>
+      <div class="row">
+        <button class="btn small" data-load="boombap" data-bpm="80" data-click="2">80 · 8ths</button>
+        <button class="btn small" data-load="boombap" data-bpm="80" data-click="3">80 · triplets</button>
+        <button class="btn small" data-load="boombap" data-bpm="80" data-click="4">80 · 16ths</button>
+        <button class="btn small" data-load="fast" data-bpm="90" data-click="4">90 · 16ths</button>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>The speed ladder</h3>
+      <ol class="steps">
+        <li>8ths (2 per beat) at 80 BPM. Every word clear.</li>
+        <li>Triplets (3 per beat) at 80. This is the modern "Migos" bounce.</li>
+        <li>16ths (4 per beat) at 80. That is already 5.3 syllables a second.</li>
+        <li>Clean run of 8 bars? Add 5 BPM. Missed words? Drop 5.</li>
+        <li>Mark breaths with <b>/</b> in your lyrics before you start.</li>
+      </ol>
+      <div class="tip"><b>Clarity first</b><span>Over-pronounce consonants at slow tempo: T, K, P, Ք, Կ, Պ. At speed they soften by themselves.</span></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Tongue twisters</h3>
+    <div class="grid2" id="twisters"></div>
+  </div>
+</section>
+
+<!-- MOTIVATION -->
+<section class="mod" id="motivation" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Training tool</span>
+    <h2>Motivational rap</h2>
+    <p>Motivation hits when it's true. The listener has to see your low point before they believe your comeback. Specific pain, then specific work, then the win.</p>
+  </div>
+  <div class="grid3">
+    <div class="tip"><b>Verse 1 · The pit</b><span>Where you started. One real detail: a place, a number, a sound.</span></div>
+    <div class="tip"><b>Hook · The vow</b><span>A short promise everyone can shout. 4 to 8 words, repeated.</span></div>
+    <div class="tip"><b>Verse 2 · The grind</b><span>What you do daily. Times, places, sacrifices.</span></div>
+    <div class="tip"><b>Bridge · The doubt</b><span>Admit the fear once. It makes the ending believable.</span></div>
+    <div class="tip"><b>Verse 3 · The view</b><span>Where it leads: family, city, the next kid who hears this.</span></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <span class="label">Hook · English · original</span>
+      <div class="lyric">
+        <div class="bar"><span class="l1">Every scar is a lesson, every loss is a <span class="end">key</span></span></div>
+        <div class="bar"><span class="l1">Every door that they closed only opened up <span class="end">me</span></span></div>
+        <div class="bar"><span class="l1">Up at five in the dark, still chasing the <span class="end b">light</span></span></div>
+        <div class="bar"><span class="l1">If I fall on my face, I get up and I <span class="end b">fight</span></span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <span class="label">Hook · Armenian · original</span>
+      <div class="lyric" id="hyHook"></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h3>Prompt</h3>
+    <div style="font-size:19px;font-weight:600" id="motPrompt">Write about the moment you almost quit.</div>
+    <div class="row"><button class="btn" id="motBtn">New prompt</button><button class="btn" data-load="boombap" data-bpm="86">Load slow boom bap</button><button class="btn" data-load="trap" data-bpm="140">Load trap</button></div>
+  </div>
+</section>
+
+<!-- DANCE -->
+<section class="mod" id="dance" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Training tool</span>
+    <h2>Dance vibe</h2>
+    <p>On the dance floor the beat is the star. Rap less, leave space, and give people a chant they can shout back after hearing it once.</p>
+  </div>
+  <div class="grid3">
+    <div class="tip"><b>Tempo</b><span>Club and house sit at 118 to 128 BPM. Dembow and reggaeton around 90 to 100. Afrobeats around 100 to 115.</span></div>
+    <div class="tip"><b>Short phrases</b><span>2 to 4 words per shout. "Hands up", "Jump", "Let's go". Long bars kill the energy.</span></div>
+    <div class="tip"><b>Call and response</b><span>You say a line, the crowd answers. Teach it in the first hook.</span></div>
+    <div class="tip"><b>Give orders</b><span>Dance lyrics tell bodies what to do: left, right, down, up, bounce.</span></div>
+    <div class="tip"><b>Song map</b><span>Intro 8 bars · Hook · Verse 8 to 12 · Hook · Break (drop the drums) · Hook ×2.</span></div>
+  </div>
+  <div class="grid2">
+    <div class="panel">
+      <span class="label">Chant · original · call and response</span>
+      <div class="lyric">
+        <div class="bar"><span class="l1">Left, right, put your hands to the <span class="end">sky</span></span></div>
+        <div class="bar"><span class="l1">Bounce, bounce, let me see you go <span class="end">high</span></span></div>
+        <div class="bar"><span class="l1">When the bass hits, jump! <span class="muted">(Jump!)</span></span></div>
+        <div class="bar"><span class="l1">When I say GG, you say RAP! <span class="muted">(RAP!)</span></span></div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3>Practice beats</h3>
+      <p class="muted">Rap the chant on each one. Notice how house wants fewer words and dembow wants a bouncy, off-beat flow.</p>
+      <div class="row">
+        <button class="btn" data-load="house" data-bpm="124">House 124</button>
+        <button class="btn" data-load="dembow" data-bpm="98">Dembow 98</button>
+        <button class="btn" data-load="afro" data-bpm="108">Afro 108</button>
+      </div>
+      <div class="tip"><b>Drill</b><span>Rap 4 bars, rest 4 bars, for 2 minutes. Resting on beat is a skill too.</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ARMENIAN DANCE -->
+<section class="mod" id="armdance" role="tabpanel" hidden>
+  <div class="intro">
+    <span class="label">Training tool</span>
+    <h2>Armenian dance rap</h2>
+    <p>Wedding and folk dance rhythms are different from 4/4 hip-hop. Learn to count them, land key words on the big drum (դհոլ dum), and leave room for the crowd's shout: <span class="hy">Հո՛պ!</span></p>
+  </div>
+  <div class="grid3" id="meters"></div>
+  <div class="grid2">
+    <div class="panel">
+      <span class="label">Kochari chant · original · rhymes on -ին and -ոտ</span>
+      <div class="lyric" id="kochari"></div>
+    </div>
+    <div class="panel">
+      <h3>Rapping over folk rhythm</h3>
+      <ul class="clean">
+        <li><b>Land on DUM.</b> Put your rhyme word on the big drum hit, not between.</li>
+        <li><b>Short lines.</b> In 2/4 a bar goes by fast. One idea per bar.</li>
+        <li><b>Speed up at the end.</b> Armenian dances often push the tempo near the end. Tick "Speed up" in the deck to practice: +1 BPM every bar.</li>
+        <li><b>Respect the melody.</b> When the zurna or duduk plays a phrase, stop rapping and let it breathe.</li>
+        <li><b>Producing it.</b> Layer an 808 under the dhol's DUM, keep the tak on top, and use samples you are allowed to use.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</div>
+</main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s), $$=s=>Array.from(document.querySelectorAll(s));
+const store={get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+const range=n=>Array.from({length:n},(_,i)=>i);
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),1600)}
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function bag(items){let b=[];return ()=>{if(!b.length)b=shuffle(items);return b.pop()}}
+const today=new Date(),dkey=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+let days=store.get('ggrap.days',[]);if(!Array.isArray(days))days=[];
+function markDay(){if(!days.includes(dkey)){days.push(dkey);store.set('ggrap.days',days)}}
+let sessions=store.get('ggrap.sessions',[]);if(!Array.isArray(sessions))sessions=[];
+let curId=store.get('ggrap.cur',null),padOwner=null;
+const curSess=()=>sessions.find(x=>x.id===curId);
+function saveSessions(){store.set('ggrap.sessions',sessions)}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+/* ---------------- Beat styles ---------------- */
+const STYLES={
+  boombap:{label:'Boom bap',group:'Hip-hop',bpm:90,steps:16,spb:4,groups:[4,4,4,4],kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],bass:{0:55,10:55},info:'Classic 4/4. Snare on 2 and 4. Good for writing and freestyle.'},
+  trap:{label:'Trap (half-time)',group:'Hip-hop',bpm:140,steps:16,spb:4,groups:[4,4,4,4],kick:[0,6,11],snare:[8],hat:range(16),bass:{0:49,6:49,11:41},info:'Snare only on 3, so it feels half as fast. Triplet flows sit well here.'},
+  fast:{label:'Double-time',group:'Hip-hop',bpm:90,steps:16,spb:4,groups:[4,4,4,4],kick:[0,3,8,10],snare:[4,12],hat:range(16),bass:{0:55,8:55},info:'Busy 16th hats push you to rap in 16ths. Start slow and climb.'},
+  drill:{label:'Drill',group:'Hip-hop',bpm:142,steps:16,spb:4,groups:[4,4,4,4],kick:[0,10],snare:[8,13],hat:[0,3,6,8,11,12,14],bass:{0:[55,41],10:[49,61.7]},bassLen:4,info:'Sliding 808s and late snares. Ride the gaps between the drums.'},
+  oldschool:{label:'Old school',group:'Hip-hop',bpm:100,steps:16,spb:4,groups:[4,4,4,4],kick:[0,6,8],snare:[4,12],clap:[4,12],hat:[0,2,4,6,8,10,12,14],bass:{0:55,6:55,8:49},info:'1980s party rap. Steady 8th-note flow, rhyme every line.'},
+  gfunk:{label:'G-funk',group:'Hip-hop',bpm:94,steps:16,spb:4,groups:[4,4,4,4],kick:[0,3,8,10],snare:[4,12],hat:range(16),bass:{0:55,3:55,6:65.4,8:49,10:55,14:73.4},swing:.12,info:'West Coast bounce. Rap relaxed, a little behind the beat.'},
+  grime:{label:'Grime',group:'Hip-hop',bpm:140,steps:16,spb:4,groups:[4,4,4,4],kick:[0,9],snare:[8],hat:[0,4,8,12],tak:[6,14],bass:{0:41,9:41},info:'London 140. Short, high-energy bursts of bars.'},
+  lofi:{label:'Lo-fi jazz',group:'Hip-hop',bpm:82,steps:16,spb:4,groups:[4,4,4,4],kick:[0,7,10],snare:[4,12],hat:[0,2,4,6,8,10,12,14],bass:{0:49,7:55,10:65.4},swing:.22,info:'Swung and chill. Talk your bars like a conversation.'},
+  phonk:{label:'Phonk',group:'Hip-hop',bpm:130,steps:16,spb:4,groups:[4,4,4,4],kick:[0,6,10],clap:[4,12],hat:[0,2,4,6,8,10,12,14],bell:[0,3,6,8,11,14],bass:{0:[55,52],10:[55,49]},bassLen:3,info:'Memphis cowbell melody over a hard clap. Aggressive drift energy.'},
+  oriental:{label:'Oriental trap',group:'World',bpm:138,steps:16,spb:4,groups:[4,4,4,4],kick:[0,6,11],snare:[8],hat:[0,2,4,6,8,10,12,14],tak:[3,5,13],bass:{0:49,6:49,11:41},drone:true,info:'Trap drums with darbuka hits and a drone. Harmonic-minor melodies fit.'},
+  jersey:{label:'Jersey club',group:'Dance',bpm:140,steps:16,spb:4,groups:[4,4,4,4],kick:[0,4,8,11,14],clap:[4,12],tak:[2,10],ohat:[6],bass:{0:55,8:55},info:'The bouncing kick pattern. Short, chopped phrases.'},
+  amapiano:{label:'Amapiano',group:'Dance',bpm:112,steps:16,spb:4,groups:[4,4,4,4],kick:[0,4,8,12],clap:[4,12],hat:[0,2,4,6,8,10,12,14],tak:[2,7,12],bass:{3:[110,82],6:[98,73],10:[110,82],14:[82,65]},bassLen:1.5,info:'Log drum bass, shakers and jazzy chords. Laid-back but made to dance.'},
+  house:{label:'House',group:'Dance',bpm:124,steps:16,spb:4,groups:[4,4,4,4],kick:[0,4,8,12],clap:[4,12],ohat:[2,6,10,14],bass:{2:55,6:55,10:55,14:65},info:'Four-on-the-floor. Short shouts, lots of space.'},
+  dembow:{label:'Dembow',group:'Dance',bpm:98,steps:16,spb:4,groups:[4,4,4,4],kick:[0,4,8,12],snare:[3,6,11,14],hat:[0,2,4,6,8,10,12,14],bass:{0:49,8:49},info:'The reggaeton bounce. Ride the off-beat snares.'},
+  afro:{label:'Afro',group:'Dance',bpm:108,steps:16,spb:4,groups:[4,4,4,4],kick:[0,7,8],snare:[4,12],tak:[3,6,10,14],hat:[0,2,4,6,8,10,12,14],bass:{0:52,7:52,8:46},info:'Swaying groove with a rim pattern. Melodic flows fit.'},
+  kochari:{label:'Kochari 2/4',group:'Armenian',bpm:120,steps:8,spb:4,groups:[4,4],dum:[0,4],tak:[3,6],drone:true,folk:true,info:'2/4: DUM on 1 and 2. Count "ONE and TWO and". Shoulder-to-shoulder line dance.'},
+  tamzara:{label:'Tamzara 9/8',group:'Armenian',bpm:130,steps:9,spb:2,groups:[2,2,2,3],dum:[0,6],tak:[2,4,8],drone:true,folk:true,info:'9/8 grouped 2+2+2+3. Count "1-2 1-2 1-2 1-2-3". The long last group is the swing.'},
+  shalakho:{label:'Shalakho 6/8',group:'Armenian',bpm:112,steps:6,spb:3,groups:[3,3],dum:[0,3],tak:[2,5],drone:true,folk:true,info:'6/8: two big pulses per bar, each split in three. Fast and fiery.'}
+};
+const ACC=st=>new Set([...(st.kick||[]),...(st.dum||[])]);
+
+const state={style:'boombap',bpm:90,playing:false,click:0,drone:true,accel:false};
+let ctx=null,master=null,noiseBuf=null,timerId=null,nextTime=0,curStep=0,barIdx=0,queue=[],lastBeat={time:0,dur:.5},barListeners=[];
+
+function ensureCtx(){
+  if(!ctx){
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return false;
+    ctx=new AC(); master=ctx.createGain(); master.gain.value=.75;
+    const comp=ctx.createDynamicsCompressor(); master.connect(comp).connect(ctx.destination);
+    noiseBuf=ctx.createBuffer(1,ctx.sampleRate,ctx.sampleRate); const d=noiseBuf.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  }
+  if(ctx.state==='suspended') ctx.resume();
+  return true;
+}
+function env(g,t,peak,dec){g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(peak,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+dec)}
+function tone(t,type,f0,f1,peak,dec){const o=ctx.createOscillator(),g=ctx.createGain();o.type=type;o.frequency.setValueAtTime(f0,t);if(f1!==f0)o.frequency.exponentialRampToValueAtTime(f1,t+dec*.6);env(g,t,peak,dec);o.connect(g).connect(master);o.start(t);o.stop(t+dec+.05)}
+function noise(t,type,freq,q,peak,dec){const s=ctx.createBufferSource();s.buffer=noiseBuf;const f=ctx.createBiquadFilter();f.type=type;f.frequency.value=freq;f.Q.value=q;const g=ctx.createGain();env(g,t,peak,dec);s.connect(f).connect(g).connect(master);s.start(t,Math.random()*.5);s.stop(t+dec+.05)}
+const SND={
+  kick:t=>tone(t,'sine',150,42,1,.42),
+  snare:t=>{noise(t,'highpass',1400,.7,.5,.18);tone(t,'triangle',220,160,.3,.1)},
+  clap:t=>{[0,.011,.022].forEach(d=>noise(t+d,'bandpass',1350,1.2,.42,.08));noise(t+.03,'bandpass',1350,1,.32,.2)},
+  hat:t=>noise(t,'highpass',7500,.8,.18,.045),
+  ohat:t=>noise(t,'highpass',7000,.8,.16,.22),
+  dum:t=>{tone(t,'sine',115,55,1,.5);noise(t,'lowpass',380,.7,.45,.12)},
+  tak:t=>{noise(t,'bandpass',2700,2.5,.55,.07);tone(t,'triangle',540,400,.2,.05)},
+  click:(t,accent)=>tone(t,'square',accent?2400:1700,accent?2400:1700,accent?.09:.05,.03),
+  bass:(t,f,dur)=>{const o=ctx.createOscillator(),g=ctx.createGain();o.type='sine';if(Array.isArray(f)){o.frequency.setValueAtTime(f[0],t);o.frequency.setValueAtTime(f[0],t+dur*.35);o.frequency.exponentialRampToValueAtTime(f[1],t+dur*.6)}else o.frequency.value=f;g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.55,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+dur);o.connect(g).connect(master);o.start(t);o.stop(t+dur+.05)},
+  cowbell:(t,mul)=>{[540,800].forEach(f=>{const o=ctx.createOscillator();o.type='square';o.frequency.value=f*mul;const bp=ctx.createBiquadFilter();bp.type='bandpass';bp.frequency.value=f*mul*1.2;bp.Q.value=3;const g=ctx.createGain();env(g,t,.1,.13);o.connect(bp).connect(g).connect(master);o.start(t);o.stop(t+.16)})},
+  pad:(t,dur,freqs,level)=>{const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=1500;const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(level,t+.06);g.gain.setValueAtTime(level,Math.max(t+.07,t+dur-.08));g.gain.linearRampToValueAtTime(.0001,t+dur);f.connect(g).connect(master);freqs.forEach(fr=>['triangle','sawtooth'].forEach((ty,i)=>{const o=ctx.createOscillator();o.type=ty;o.frequency.value=fr*(i?1.004:1);o.connect(f);o.start(t);o.stop(t+dur+.02)}))},
+  stab:(t,freqs,level)=>{const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=1100;f.Q.value=3;const g=ctx.createGain();env(g,t,level,.22);f.connect(g).connect(master);freqs.forEach(fr=>{const o=ctx.createOscillator();o.type='square';o.frequency.value=fr;o.connect(f);o.start(t);o.stop(t+.25)})},
+  drone:(t,dur)=>{const f=ctx.createBiquadFilter();f.type='lowpass';f.frequency.value=650;const g=ctx.createGain();g.gain.setValueAtTime(.0001,t);g.gain.linearRampToValueAtTime(.05,t+.08);g.gain.setValueAtTime(.05,t+dur-.06);g.gain.linearRampToValueAtTime(.0001,t+dur);f.connect(g).connect(master);[73.42,110,73.9].forEach(fr=>{const o=ctx.createOscillator();o.type='sawtooth';o.frequency.value=fr;o.connect(f);o.start(t);o.stop(t+dur+.02)})}
+};
+function stepDur(){const st=STYLES[state.style];return 60/state.bpm/st.spb}
+const mtof=m=>440*Math.pow(2,(m-69)/12);
+const INTV={m:[0,3,7],M:[0,4,7],m7:[0,3,7,10],'7':[0,4,7,10],maj7:[0,4,7,11]};
+function scheduleStep(step,t,bar){
+  const st=STYLES[state.style],sd=stepDur(),t0=t,v=state.vibe;
+  if(st.swing&&step%2)t+=sd*st.swing;
+  ['kick','snare','clap','hat','ohat','dum','tak'].forEach(k=>{if(st[k]&&st[k].includes(step))SND[k](t)});
+  const ch=v?v.prog[bar%v.prog.length]:null,croot=ch?(v.key+ch[0])%12:9;
+  if(v){
+    const freqs=INTV[ch[1]].map(i=>mtof(48+croot+i));
+    if(step===0&&v.sample<1)SND.pad(t,sd*st.steps,freqs,.03*(1-v.sample*.5));
+    const stabs=st.steps===16?(v.sample>=1?[0,3,6,10,12]:[0,10]):[0];
+    if(v.sample>0&&stabs.includes(step))SND.stab(t,freqs.map(f=>f*2),.025+.03*v.sample);
+    if(v.sample>0)noise(t+Math.random()*sd,'highpass',2500,.5,.05*v.sample,.006);
+  }
+  if(st.bell&&st.bell.includes(step)){const tones=ch?INTV[ch[1]]:[0,3,7];SND.cowbell(t,Math.pow(2,((croot+tones[st.bell.indexOf(step)%tones.length])-9)/12))}
+  if(st.bass&&st.bass[step]){let b=st.bass[step];if(v){const f=mtof(29+((croot-5+12)%12));b=Array.isArray(b)?[f,f*b[1]/b[0]]:f}SND.bass(t,b,sd*(st.bassLen||2.5))}
+  if(st.drone&&state.drone&&step===0) SND.drone(t,sd*st.steps);
+  if(step%st.spb===0){
+    lastBeatQueue.push({time:t0,dur:sd*st.spb});
+    if(state.click&&!st.folk){const n=state.click,bd=sd*st.spb;for(let i=0;i<n;i++)SND.click(t0+i*bd/n,i===0)}
+  }
+}
+let lastBeatQueue=[];
+function scheduler(){
+  while(nextTime<ctx.currentTime+.12){
+    scheduleStep(curStep,nextTime,barIdx);
+    queue.push({step:curStep,bar:barIdx,time:nextTime});
+    nextTime+=stepDur(); curStep++;
+    if(curStep>=STYLES[state.style].steps){curStep=0;barIdx++}
+  }
+}
+function start(){
+  if(!ensureCtx()){toast('Audio is not available in this browser');return}
+  if(state.playing) return;
+  state.playing=true;curStep=0;barIdx=0;queue=[];lastBeatQueue=[];nextTime=ctx.currentTime+.06;
+  timerId=setInterval(scheduler,25);scheduler();
+  setPlayIcon();
+}
+function stop(){
+  state.playing=false;clearInterval(timerId);queue=[];lastBeatQueue=[];
+  $$('.light.on').forEach(l=>l.classList.remove('on'));$$('.slot.on').forEach(l=>l.classList.remove('on'));
+  setPlayIcon();
+}
+function setPlayIcon(){
+  $('#playIcon').innerHTML=state.playing?'<path d="M5 3h4v14H5zM11 3h4v14h-4z"/>':'<path d="M5 3l12 7-12 7z"/>';
+  $('#playBtn').setAttribute('aria-label',state.playing?'Stop beat':'Play beat');
+}
+function draw(){
+  if(state.playing&&ctx){
+    const now=ctx.currentTime;
+    while(queue.length&&queue[0].time<=now){
+      const e=queue.shift();
+      $$('.light.on').forEach(l=>l.classList.remove('on'));
+      const el=document.querySelector('.light[data-s="'+e.step+'"]'); if(el) el.classList.add('on');
+      if(e.step===0){$('#barNum').textContent=e.bar+1;barListeners.forEach(f=>f(e.bar+1))}
+    }
+    while(lastBeatQueue.length&&lastBeatQueue[0].time<=now){lastBeat=lastBeatQueue.shift()}
+    updateLane(now);
+  }
+  requestAnimationFrame(draw);
+}
+requestAnimationFrame(draw);
+
+function renderLights(){
+  const st=STYLES[state.style],acc=ACC(st);let s=0,html='';
+  st.groups.forEach(g=>{html+='<div class="lgroup">';for(let i=0;i<g;i++,s++)html+='<span class="light'+(acc.has(s)?' acc':'')+'" data-s="'+s+'"></span>';html+='</div>'});
+  $('#lights').innerHTML=html;
+}
+function setStyle(key,bpm){
+  state.style=key;state.vibe=null;const st=STYLES[key];
+  setBpm(bpm||st.bpm);
+  $('#styleSel').value=key;
+  if(state.playing){curStep=0;queue=[];lastBeatQueue=[];nextTime=Math.max(nextTime,ctx.currentTime+.03)}
+  renderLights();
+  $('#styleInfo').textContent=st.info;
+  $('#droneWrap').hidden=!st.drone;$('#accelWrap').hidden=!st.folk;$('#clickWrap').hidden=!!st.folk;
+  if(!st.folk&&state.accel){state.accel=false;$('#accelChk').checked=false}
+  updateFastStats();
+}
+function setBpm(v){
+  state.bpm=Math.max(60,Math.min(180,Math.round(v)));
+  $('#bpmRange').value=state.bpm;$('#bpmOut').textContent=state.bpm;updateFastStats();
+}
+function setClick(n){state.click=+n;$('#clickSel').value=String(n);buildLane();updateFastStats()}
+
+// deck wiring
+const sel=$('#styleSel');
+['Hip-hop','Dance','World','Armenian'].forEach(g=>{const og=document.createElement('optgroup');og.label=g;Object.entries(STYLES).filter(([,s])=>s.group===g).forEach(([k,s])=>{const o=document.createElement('option');o.value=k;o.textContent=s.label;og.appendChild(o)});sel.appendChild(og)});
+sel.addEventListener('change',()=>setStyle(sel.value));
+$('#bpmRange').addEventListener('input',e=>setBpm(+e.target.value));
+$('#clickSel').addEventListener('change',e=>setClick(e.target.value));
+$('#droneChk').addEventListener('change',e=>state.drone=e.target.checked);
+$('#accelChk').addEventListener('change',e=>state.accel=e.target.checked);
+$('#playBtn').addEventListener('click',()=>state.playing?stop():start());
+barListeners.push(()=>{if(state.accel&&STYLES[state.style].folk&&state.bpm<170)setBpm(state.bpm+1)});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-load]');if(!b)return;
+  setStyle(b.dataset.load,+b.dataset.bpm||undefined);
+  if(b.dataset.click!==undefined)setClick(b.dataset.click);
+  start();toast(STYLES[b.dataset.load].label+' · '+state.bpm+' BPM');
+});
+
+/* ---------------- Tabs ---------------- */
+const TABS=[['styles','','Start'],['plan','','Daily plan'],['sessions','','Sessions']];
+const MAIN=TABS.map(t=>t[0]),PAGES=['styles','plan','sessions','session','freestyle','writing','armenian','english','fast','motivation','dance','armdance','saved'];
+$('#tabs').innerHTML=TABS.map(([id,n,l])=>'<button class="tab" role="tab" id="tab-'+id+'" aria-controls="'+id+'" data-tab="'+id+'">'+l+'</button>').join('');
+function showTab(id){
+  if(!PAGES.includes(id))id='styles';
+  if(id==='session'&&!curSess())id='sessions';
+  const vis=id==='session'?['session',curSess().mode]:[id];
+  PAGES.forEach(p=>{$('#'+p).hidden=!vis.includes(p)});
+  const selTab=MAIN.includes(id)?id:(id==='saved'?'':'sessions');
+  MAIN.forEach(t=>$('#tab-'+t).setAttribute('aria-selected',String(t===selTab)));
+  const tool=!MAIN.includes(id)&&id!=='session';
+  $('#backbar').hidden=!tool;$('#backBtn').textContent=curSess()?'← Back to your session':'← Back to Start';
+  if(id==='session')renderSessHead();if(id==='sessions')renderSessions();if(id==='plan')renderPlan();
+}
+$('#backBtn').addEventListener('click',()=>{location.hash=curSess()?'session':'styles'});
+$('#tabs').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(!b)return;if(location.hash!=='#'+b.dataset.tab)location.hash=b.dataset.tab;else showTab(b.dataset.tab)});
+document.addEventListener('click',e=>{const a=e.target.closest('[data-goto]');if(a){location.hash=a.dataset.goto;window.scrollTo({top:0})}});
+window.addEventListener('hashchange',()=>showTab(location.hash.slice(1)));
+
+/* ---------------- Word banks ---------------- */
+const EN=['mirror','thunder','rocket','crown','shadow','ocean','money','engine','glass','jungle','phone','chess','diamond','river','mountain','coffee','gravity','highway','storm','gold','mask','boxing','clock','fire','wings','satellite','pressure','rain','compass','city','silence','ladder','camera','bridge','lion','mic','family','dream','sneakers','winter','pizza','airport','ghost','robot','paper','magnet','volcano','taxi'];
+const HY=[['սիրտ','sirt','heart'],['քաղաք','kaghak','city'],['լեռ','ler','mountain'],['կրակ','krak','fire'],['երազ','yeraz','dream'],['ուժ','uzh','strength'],['ճամփա','champa','road'],['ծով','tsov','sea'],['աստղ','astgh','star'],['մայր','mayr','mother'],['ընկեր','ynker','friend'],['հաղթանակ','haghtanak','victory'],['ժամանակ','zhamanak','time'],['ձայն','dzayn','voice'],['բեմ','bem','stage'],['գիշեր','gisher','night'],['արև','arev','sun'],['քամի','kami','wind'],['ազատություն','azatutyun','freedom'],['հայրենիք','hayrenik','homeland'],['Արարատ','Ararat','Mount Ararat'],['նուռ','nur','pomegranate'],['ծիրան','tsiran','apricot'],['փողոց','poghots','street'],['պայքար','paykar','struggle'],['հույս','huys','hope'],['լույս','luys','light'],['ցավ','tsav','pain'],['խաղ','khagh','game'],['թև','tev','wing'],['Երևան','Yerevan','Yerevan'],['դհոլ','dhol','dhol drum']];
+const nextEn=bag(EN),nextHy=bag(HY);
+function pickWord(lang){
+  if(lang==='mix') lang=Math.random()<.5?'en':'hy';
+  if(lang==='hy'){const w=nextHy();return{w:w[0],t:w[1],m:w[2],hy:true}}
+  return{w:nextEn(),hy:false};
+}
+
+/* ---------------- Prompts: words, pictures, rhyme packs ---------------- */
+const RH_EN=[
+ ['The night you didn\'t give up',['night','light','fight','flight','bright','tight','sight','height','white']],
+ ['Fame and what it costs',['game','name','fame','flame','frame','same','aim','claim','blame']],
+ ['Growing slowly',['flow','go','show','glow','slow','know','grow','throw','below']],
+ ['Your street',['street','beat','heat','seat','feet','sweet','defeat','repeat','concrete']],
+ ['Never fall behind',['mind','grind','find','kind','behind','blind','signed','designed','rewind']],
+ ['The team behind the dream',['dream','team','scream','stream','beam','steam','extreme','supreme','gleam']],
+ ['Gold and cold',['gold','cold','bold','told','hold','old','sold','fold','controlled']],
+ ['On the road',['road','load','code','mode','showed','owed','glowed','explode','episode']],
+ ['Fast cash',['cash','flash','crash','dash','splash','smash','stash','clash','trash']],
+ ['Start from the heart',['heart','start','art','apart','part','smart','chart','depart']],
+ ['Pain into gain',['pain','rain','gain','chain','train','brain','lane','plane','remain']],
+ ['Desire',['fire','higher','desire','wire','liar','choir','inspire','empire','entire']],
+ ['Crown of the town',['crown','town','down','frown','brown','clown','drown','renown','countdown']],
+ ['Climbing over time',['time','rhyme','climb','prime','crime','dime','chime','sublime','overtime']],
+ ['Home alone',['home','alone','phone','stone','throne','zone','known','grown','own']],
+ ['Why I fly',['sky','high','fly','why','try','cry','goodbye','eye','deny']],
+ ['The final score',['war','more','door','floor','core','score','before','explore','roar']]
+];
+const RH_HY=[
+ ['Պայքար',[['պայքար','paykar','struggle'],['քար','kar','stone'],['դար','dar','century'],['արդար','ardar','fair'],['կատար','katar','summit'],['համար','hamar','for, number'],['ճար','char','a way out']]],
+ ['Հաղթանակ',[['հաղթանակ','haghtanak','victory'],['կրակ','krak','fire'],['ժամանակ','zhamanak','time'],['մենակ','menak','alone'],['սպիտակ','spitak','white'],['դրոշակ','droshak','flag']]],
+ ['Միասին',[['միասին','miasin','together'],['գետնին','getnin','to the ground'],['երկնքին','yerknkin','to the sky'],['սրտին','srtin','to the heart'],['քամին','kamin','the wind'],['հողին','hoghin','to the soil']]],
+ ['Ապրել',[['ապրել','aprel','to live'],['գրել','grel','to write'],['սիրել','sirel','to love'],['պարել','parel','to dance'],['հաղթել','haghtel','to win'],['թռչել','trchel','to fly'],['երգել','yergel','to sing']]],
+ ['Երազում',[['երազում','yerazum','in a dream'],['սրտում','srtum','in the heart'],['բեմում','bemum','on stage'],['քաղաքում','kaghakum','in the city'],['վազում','vazum','running'],['երգում','yergum','singing']]],
+ ['Ազատություն',[['ազատություն','azatutyun','freedom'],['համբերություն','hamberutyun','patience'],['երջանկություն','yerjankutyun','happiness'],['ճշմարտություն','chshmartutyun','truth'],['ընկերություն','ynkerutyun','friendship'],['հավատարմություն','havatarmutyun','loyalty']]],
+ ['Չմոռանալ',[['մոռանալ','moranal','to forget'],['գնալ','gnal','to go'],['մնալ','mnal','to stay'],['խաղալ','khaghal','to play'],['հասկանալ','haskanal','to understand'],['ուժեղանալ','uzheghanal','to grow stronger']]],
+ ['Ընկեր',[['ընկեր','ynker','friend'],['գիշեր','gisher','night'],['սեր','ser','love'],['մեր','mer','our'],['տներ','tner','houses'],['ձեր','dzer','your']]],
+ ['Կարոտ',[['կարոտ','karot','longing'],['մոտ','mot','close'],['առավոտ','aravot','morning'],['հոտ','hot','smell'],['խոտ','khot','grass'],['ամպոտ','ampot','cloudy']]]
+];
+const TOPICS_HY=['Քաղաքը գիշերը','Իմ առաջին բեմը','Երևանում մի օր','Ամենամեծ վախս','Տատիկիս խոհանոցը','Ինչ չի գնվում փողով','Նամակ իմ փոքր եսին','Վերջին ավտոբուսը'];
+const TOPICS_EN=['The city at 3 AM','Your first time on stage','A day in Yerevan','Beating your biggest fear','Grandma\'s kitchen','What money can\'t buy','A letter to your younger self','The last bus home'];
+let gid=0;
+function svgScene(id){
+  const g='sg'+(++gid),W=320,H=200;let o='<svg viewBox="0 0 320 200" role="img" xmlns="http://www.w3.org/2000/svg">';
+  const sky=(a,b)=>{o+='<defs><linearGradient id="'+g+'" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="'+a+'"/><stop offset="1" stop-color="'+b+'"/></linearGradient></defs><rect width="320" height="200" fill="url(#'+g+')"/>'};
+  const R=(x,y,w,h,f,extra)=>{o+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" fill="'+f+'" '+(extra||'')+'/>'};
+  const C=(x,y,r,f,extra)=>{o+='<circle cx="'+x+'" cy="'+y+'" r="'+r+'" fill="'+f+'" '+(extra||'')+'/>'};
+  const P=(d,f,extra)=>{o+='<path d="'+d+'" fill="'+f+'" '+(extra||'')+'/>'};
+  let seed=7;const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;
+  const stars=n=>{for(let i=0;i<n;i++)C((rnd()*320).toFixed(1),(rnd()*90).toFixed(1),(rnd()*1.2+.3).toFixed(2),'#fff','opacity="'+(rnd()*.6+.3).toFixed(2)+'"')};
+  const skyline=(y,f,win)=>{let x=-5;while(x<325){const w=14+rnd()*26,h=20+rnd()*60;R(x.toFixed(1),(y-h).toFixed(1),w.toFixed(1),(h+60).toFixed(1),f);if(win)for(let wy=y-h+6;wy<y-4;wy+=9)for(let wx=x+4;wx<x+w-5;wx+=7)if(rnd()<.3)R(wx.toFixed(1),wy.toFixed(1),3,4,'#ffd27a','opacity=".85"');x+=w+2}};
+  const person=(x,y,s,f,pose)=>{const k=s;C(x,y-34*k,6*k,f);
+    if(pose==='sit')P('M'+(x-6*k)+' '+(y-28*k)+'h12v'+(14*k)+'h'+(10*k)+'v'+(5*k)+'h-'+(22*k)+'z',f);
+    else if(pose==='arms')P('M'+(x-7*k)+' '+(y-27*k)+'l-'+(9*k)+' -'+(14*k)+'l3 -2l'+(11*k)+' '+(12*k)+'h'+(6*k)+'l'+(11*k)+' -'+(12*k)+'l3 2l-'+(9*k)+' '+(14*k)+'v'+(14*k)+'l3 '+(13*k)+'h-5l-'+(5*k)+' -'+(11*k)+'l-'+(5*k)+' '+(11*k)+'h-5l3 -'+(13*k)+'z',f);
+    else P('M'+(x-7*k)+' '+(y-27*k)+'h'+(14*k)+'l2 '+(14*k)+'h-3l-1 -6v'+(19*k)+'h-4l-1 -'+(12*k)+'l-1 '+(12*k)+'h-4v-'+(19*k)+'l-1 6h-3z',f)};
+  const rain=(n,c)=>{for(let i=0;i<n;i++){const x=rnd()*330,y=rnd()*200;o+='<line x1="'+x.toFixed(1)+'" y1="'+y.toFixed(1)+'" x2="'+(x-4).toFixed(1)+'" y2="'+(y+11).toFixed(1)+'" stroke="'+c+'" stroke-width="1" opacity=".55"/>'}};
+  switch(id){
+    case 'roof':sky('#0b1026','#2c3260');stars(60);C(258,42,15,'#f4e9c8');C(264,38,14,'#1a2046');skyline(160,'#121631',true);R(0,166,320,34,'#1b1f36');person(96,166,1.25,'#0a0c1a','sit');break;
+    case 'ararat':sky('#ff9461','#ffe0a8');C(232,112,26,'#ffd27a');P('M0 150 L95 52 L120 66 L160 40 L250 150 Z','#6b4c7a');P('M138 58 L160 40 L176 58 L166 54 L158 62 L150 54 Z','#fff');P('M83 64 L95 52 L104 61 L96 59 L90 66 Z','#fff');P('M210 150 L262 92 L320 150 Z','#7a5888');P('M253 102 L262 92 L271 102 L262 99 Z','#fff');skyline(178,'#4a3557',true);R(0,182,320,18,'#3b2a46');break;
+    case 'stage':R(0,0,320,200,'#0d0d14');P('M160 0 L96 170 L224 170 Z','#ffe6a0','opacity=".22"');R(0,166,320,34,'#26263a');o+='<line x1="160" y1="170" x2="160" y2="112" stroke="#c8c8d8" stroke-width="2.5"/><line x1="150" y1="170" x2="170" y2="170" stroke="#c8c8d8" stroke-width="3"/>';o+='<rect x="155" y="100" width="10" height="16" rx="5" fill="#d9d9e6"/>';for(let i=0;i<14;i++)C(10+i*23,200,11,'#000');break;
+    case 'bus':sky('#18203a','#36446a');rain(70,'#c8d4ff');R(0,160,320,40,'#1e2538');R(28,98,92,6,'#46506e');R(32,104,4,58,'#46506e');R(112,104,4,58,'#46506e');R(36,104,76,40,'#8fb0ff','opacity=".12"');person(74,162,1.2,'#0b0e19');R(214,118,112,46,'#c9a227','rx="6"');for(let i=0;i<4;i++)R(222+i*24,126,18,14,'#2a2f45');C(318,156,4,'#ff4d4d');o+='<line x1="168" y1="162" x2="168" y2="70" stroke="#57617f" stroke-width="3"/>';C(168,68,6,'#ffe6a0');P('M168 72 L144 162 L192 162 Z','#ffe6a0','opacity=".12"');break;
+    case 'ring':R(0,0,320,200,'#1a1013');for(let i=0;i<6;i++)C(30+i*52,18,6,'#fff3c4','opacity=".85"');P('M20 150 L300 150 L320 200 L0 200 Z','#b9a17a');['#e0546a','#ffffff','#5d7fe0'].forEach((c,i)=>{o+='<line x1="16" y1="'+(104+i*16)+'" x2="304" y2="'+(104+i*16)+'" stroke="'+c+'" stroke-width="3"/>'});R(12,92,8,62,'#333');R(300,92,8,62,'#333');person(120,150,1.6,'#120b0d','arms');person(206,150,1.6,'#120b0d');break;
+    case 'wedding':sky('#3a1d2b','#7a3a3a');o+='<path d="M0 30 Q80 70 160 30 T320 30" stroke="#2a1520" stroke-width="1.5" fill="none"/>';for(let i=0;i<=16;i++){const x=i*20,y=30+Math.sin(i/16*Math.PI*2)*-14+(i%8<4?6:0);C(x,y+6,3.5,'#ffd27a')}R(0,165,320,35,'#3a2024');for(let i=0;i<7;i++)person(46+i*38,166,1.15,'#170b10');o+='<line x1="46" y1="134" x2="274" y2="134" stroke="#170b10" stroke-width="4"/>';break;
+    case 'phone':R(0,0,320,200,'#1d1f2b');R(112,14,96,174,'#0f1117','rx="14"');R(118,28,84,146,'#2b4ea2','rx="4"');for(let i=0;i<5;i++)R(124,36+i*26,i%2?56:70,16,i%2?'#8da8f2':'#ffffff','rx="6" opacity=".85"');C(204,22,15,'#e0546a');o+='<text x="204" y="26.5" text-anchor="middle" font-family="sans-serif" font-size="11" font-weight="700" fill="#fff">99+</text>';break;
+    case 'kitchen':R(0,0,320,200,'#f1d3a6');R(196,26,92,70,'#9fd3ff');R(196,58,92,4,'#c79a6a');R(240,26,4,70,'#c79a6a');R(192,22,100,78,'none','stroke="#c79a6a" stroke-width="6"');R(0,140,320,60,'#8a5a3c');o+='<ellipse cx="110" cy="138" rx="42" ry="10" fill="#e9e2d6"/>';P('M70 134 Q110 170 150 134 Z','#ffffff');P('M180 132 Q215 118 250 132 Q215 140 180 132 Z','#d9a35b');['M96 120 q-8 -12 0 -24 q8 -12 0 -24','M112 118 q-8 -12 0 -24 q8 -12 0 -24','M128 120 q-8 -12 0 -24 q8 -12 0 -24'].forEach(d=>{o+='<path d="'+d+'" stroke="#ffffff" stroke-width="3" fill="none" opacity=".8"/>'});break;
+    case 'window':sky('#4b5872','#8d9ab3');rain(90,'#e8eeff');R(0,0,320,200,'none','stroke="#20242f" stroke-width="22"');R(156,0,8,200,'#20242f');R(0,96,320,8,'#20242f');R(0,170,320,30,'#20242f');person(70,172,1.5,'#141821','sit');R(236,148,26,22,'#7a4a33');P('M249 148 q-14 -26 -4 -40 q10 16 4 40 q8 -20 22 -24 q-6 18 -22 24 Z','#4f8a5b');break;
+    case 'finish':sky('#7ec8ff','#d8f0ff');C(268,38,18,'#ffd27a');P('M0 140 L320 140 L320 200 L0 200 Z','#c8553d');for(let i=1;i<5;i++)o+='<line x1="0" y1="'+(140+i*12)+'" x2="320" y2="'+(140+i*12)+'" stroke="#fff" stroke-width="1.5" opacity=".7"/>';R(150,76,4,90,'#555');R(250,76,4,90,'#555');o+='<path d="M154 92 Q200 106 250 92" stroke="#e0546a" stroke-width="3" fill="none"/>';person(200,166,1.7,'#1d2433','arms');break;
+  }
+  return o+'</svg>';
+}
+const SCENES=[
+ ['roof','Rooftop, 3 AM','You can\'t sleep. The city is quiet. What\'s on your mind?','Տանիք, գիշերվա 3-ը','Քունդ չի տանում։ Քաղաքը լուռ է։ Ի՞նչ կա մտքումդ։'],
+ ['ararat','Ararat at sunrise','The mountain you can see but can\'t reach. What is yours?','Արարատը արշալույսին','Սարը, որ տեսնում ես, բայց չես հասնում։ Ո՞րն է քո սարը։'],
+ ['stage','Empty stage','Ten seconds before your first show.','Դատարկ բեմ','Տասը վայրկյան մինչև քո առաջին համերգը։'],
+ ['bus','The last bus','You missed it. Walk home and tell the story of the road.','Վերջին ավտոբուսը','Ուշացար։ Ոտքով տուն ես գնում։ Պատմի՛ր ճանապարհը։'],
+ ['ring','Round 12','You\'re tired. Why do you keep fighting?','Տասներկուերորդ ռաունդ','Հոգնած ես։ Ինչո՞ւ ես շարունակում պայքարել։'],
+ ['wedding','Wedding dance floor','Everyone is dancing Kochari. Hype them up.','Հարսանիքի պար','Բոլորը պարում են Քոչարի։ Բոլորին ոգևորի՛ր։'],
+ ['phone','99+ messages','Your phone won\'t stop buzzing. Who is it and why?','99+ հաղորդագրություն','Հեռախոսդ չի դադարում զանգել։ Ո՞վ է և ինչո՞ւ։'],
+ ['kitchen','Grandma\'s kitchen','The smell of home. Tell one memory.','Տատիկի խոհանոցը','Տան բույրը։ Պատմի՛ր մի հիշողություն։'],
+ ['window','Rain on the window','A sad day. Turn it into hope by bar 8.','Անձրև պատուհանին','Տխուր օր։ Մինչև 8-րդ տողը այն հույսի դարձրու։'],
+ ['finish','The finish line','You made it. Who do you thank?','Վերջնագիծ','Դու հասար։ Ու՞մ ես շնորհակալություն հայտնում։']
+];
+const nextScene=bag(SCENES),nextRhEn=bag(RH_EN),nextRhHy=bag(RH_HY);
+const pickLang=l=>l==='mix'?(Math.random()<.5?'en':'hy'):l;
+function makePrompt(src,lang){
+  const L=pickLang(lang);
+  if(src==='pics')return{type:'pic',sc:nextScene(),lang};
+  if(src==='r1'){if(L==='hy'){const f=nextRhHy(),w=shuffle(f[1]);return{type:'r1',hy:true,topic:f[0],main:w[0],rh:w.slice(1,6)}}const f=nextRhEn(),w=shuffle(f[1]);return{type:'r1',topic:f[0],main:[w[0]],rh:w.slice(1,6).map(x=>[x])}}
+  if(src==='r5'){const cols=[];const usedE=new Set(),usedH=new Set();for(let i=0;i<5;i++){const Li=pickLang(lang);if(Li==='hy'){let f;do f=nextRhHy();while(usedH.has(f[0])&&usedH.size<RH_HY.length);usedH.add(f[0]);const w=shuffle(f[1]);cols.push({hy:true,main:w[0],rh:w.slice(1,6)})}else{let f;do f=nextRhEn();while(usedE.has(f[0])&&usedE.size<RH_EN.length);usedE.add(f[0]);const w=shuffle(f[1]);cols.push({main:[w[0]],rh:w.slice(1,6).map(x=>[x])})}}
+    return{type:'r5',topic:L==='hy'?TOPICS_HY[Math.floor(Math.random()*TOPICS_HY.length)]:TOPICS_EN[Math.floor(Math.random()*TOPICS_EN.length)],topicHy:L==='hy',cols,focus:0}}
+  return Object.assign({type:'word'},pickWord(L));
+}
+const wHtml=(w,big)=>w[1]?'<span class="hy">'+esc(w[0])+'<small>'+esc(w[1])+' · '+esc(w[2])+'</small></span>':'<span>'+esc(w[0])+'</span>';
+function promptHtml(p){
+  if(p.type==='word')return '<div class="pcard"><div class="main'+(p.hy?' hy':'')+'">'+esc(p.w)+'</div>'+(p.hy?'<div class="tr">'+esc(p.t)+' · '+esc(p.m)+'</div>':'')+'</div>';
+  if(p.type==='pic'){const sc=p.sc,both=p.lang==='mix',hy=p.lang==='hy';
+    return '<div class="pcard pic">'+svgScene(sc[0])+'<div class="ptitle'+(hy?' hy':'')+'">'+esc(hy?sc[3]:sc[1])+'</div>'+(both?'<div class="ptitle hy" style="font-size:22px">'+esc(sc[3])+'</div>':'')+'<div class="pscen'+(hy?' hy':'')+'">'+esc(hy?sc[4]:sc[2])+'</div>'+(both?'<div class="pscen hy">'+esc(sc[4])+'</div>':'')+'</div>'}
+  if(p.type==='r1')return '<div class="pcard"><div class="topic'+(p.hy?' hy':'')+'">Topic · '+esc(p.topic)+'</div><div class="main'+(p.hy?' hy':'')+'">'+esc(p.main[0])+'</div>'+(p.hy?'<div class="tr">'+esc(p.main[1])+' · '+esc(p.main[2])+'</div>':'')+'<div class="rchips">'+p.rh.map(w=>wHtml(w)).join('')+'</div></div>';
+  return '<div class="pcard"><div class="topic'+(p.topicHy?' hy':'')+'">Topic · '+esc(p.topic)+'</div><div class="r5">'+p.cols.map((c,i)=>'<div class="col'+(i===p.focus?' focus':'')+'"><b class="'+(c.hy?'hy':'')+'">'+esc(c.main[0])+'</b>'+(c.hy?'<small>'+esc(c.main[1])+' · '+esc(c.main[2])+'</small>':'')+c.rh.map(w=>'<span class="'+(c.hy?'hy':'')+'">'+esc(w[0])+(w[1]?'<small>'+esc(w[1])+'</small>':'')+'</span>').join('')+'</div>').join('')+'</div></div>';
+}
+function promptLabel(p){return p.type==='word'?p.w:p.type==='pic'?(p.lang==='hy'?p.sc[3]:p.sc[1]):p.type==='r1'?p.main[0]:p.topic}
+
+/* ---------------- Freestyle ---------------- */
+const fs={running:false,count:0,current:null,next:null,end:0,tick:null,history:[]};
+const fsSrc=()=>$('#fsSrc').value,fsLang=()=>$('#fsLang').value;
+function showFs(){
+  $('#fsCard').innerHTML=promptHtml(fs.current);
+  const w=fs.current.type==='word';$('#fsNextWrap').innerHTML=w?'Next: <b class="'+(fs.next&&fs.next.hy?'hy':'')+'">'+esc(fs.next?promptLabel(fs.next):'…')+'</b>':fs.current.type==='r5'?'Focus moves every <b>'+$('#fsEvery').value+'</b> bars':'New one every <b>'+$('#fsEvery').value+'</b> bars';
+}
+function fsAdvance(){
+  const c=fs.current;
+  if(c&&c.type==='r5'&&c.focus<4){c.focus++;showFs();return}
+  if(c){fs.history.push(promptLabel(c));$('#fsHistory').innerHTML=fs.history.map(w=>'<span class="hy">'+esc(w)+'</span>').join('')}
+  fs.current=(fs.next&&fs.next.type===(fsSrc()==='words'?'word':fsSrc()==='pics'?'pic':fsSrc()))?fs.next:makePrompt(fsSrc(),fsLang());
+  fs.next=fsSrc()==='words'?makePrompt('words',fsLang()):null;showFs();
+}
+function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+function fsStart(){
+  if(!state.playing){const cs=curSess();if(cs)playSession(cs);else start()}
+  if(!state.playing)return;
+  fs.running=true;fs.count=0;fs.history=[];fs.current=null;fs.next=null;$('#fsHistory').innerHTML='';
+  fsAdvance();
+  const len=+$('#fsLen').value;fs.end=Date.now()+len*1000;
+  $('#fsStatus').textContent='Live';$('#fsBars').textContent='0';
+  clearInterval(fs.tick);fs.tick=setInterval(()=>{const left=(fs.end-Date.now())/1000;$('#fsTimer').textContent=fmt(left);if(left<=0)fsStop(true)},200);
+}
+function fsStop(done){
+  fs.running=false;clearInterval(fs.tick);
+  $('#fsStatus').textContent=done?'Round done · '+(fs.history.length+1)+' prompts':'Stopped';
+  if(done){$('#fsTimer').textContent='0:00';toast('Round done. Record the next one.');markDay();const cs=curSess();if(cs&&cs.mode==='freestyle'){cs.stats.rounds++;cs.stats.words+=fs.history.length+1;saveSessions()}}
+}
+barListeners.push(()=>{
+  if(!fs.running)return;fs.count++;$('#fsBars').textContent=fs.count;
+  const every=+$('#fsEvery').value;if(fs.count%every===0)fsAdvance();
+});
+$('#fsStart').addEventListener('click',fsStart);
+$('#fsStop').addEventListener('click',()=>fsStop(false));
+$('#fsLen').addEventListener('change',e=>{if(!fs.running)$('#fsTimer').textContent=fmt(+e.target.value)});
+$('#fsEvery').addEventListener('input',e=>{$('#fsEveryOut').textContent=e.target.value;const cs=curSess();if(cs){cs.every=+e.target.value;saveSessions()}if(fs.current)showFs()});
+function fsPreview(){fs.current=makePrompt(fsSrc(),fsLang());fs.next=fsSrc()==='words'?makePrompt('words',fsLang()):null;showFs();if(!fs.running)$('#fsStatus').textContent='Ready · press Start round'}
+function wNew(){$('#wCard').innerHTML=promptHtml(makePrompt($('#wSrc').value,$('#wLang').value))}
+$('#wNew').addEventListener('click',wNew);
+// language and source belong to the session; both screens share them
+document.addEventListener('change',e=>{
+  const t=e.target;if(!t.dataset)return;
+  if(t.dataset.lang){$$('[data-lang]').forEach(x=>x.value=t.value);store.set('ggrap.lang',t.value);const cs=curSess();if(cs){cs.lang=t.value;saveSessions()}fs.next=null;if(!fs.running)fsPreview();wNew()}
+  else if(t.dataset.src){const cs=curSess();if(cs){cs[t.id==='fsSrc'?'src':'wsrc']=t.value;saveSessions()}if(t.id==='fsSrc'){fs.next=null;if(!fs.running)fsPreview()}else wNew()}
+});
+function applySessPrefs(s){
+  const lang=(s&&s.lang)||store.get('ggrap.lang','en');$$('[data-lang]').forEach(x=>x.value=lang);
+  $('#fsSrc').value=(s&&s.src)||'words';$('#wSrc').value=(s&&s.wsrc)||'r1';
+  const ev=(s&&s.every)||4;$('#fsEvery').value=ev;$('#fsEveryOut').textContent=ev;
+  if(!fs.running)fsPreview();wNew();
+}
+applySessPrefs(null);
+
+const TOPICS=['The city at 3 AM','Your first time on stage','A day in Yerevan','Beating your biggest fear','Your phone knows all your secrets','The beat is a car. Where are you driving?','Rap battle against your alarm clock','Grandma\'s kitchen','What money can\'t buy','The dance floor at an Armenian wedding','Your best friend, ten years from now','Winning with no one watching','A letter to your younger self','Mount Ararat through the window','The last bus home'];
+const nextTopic=bag(TOPICS);
+$('#topicBtn').addEventListener('click',()=>$('#topic').textContent=nextTopic());
+
+/* ---------------- Writing pad ---------------- */
+const ARM=/[Ա-և]/;
+function sylHy(w){return (w.toLowerCase().match(/ու|[աեէըիոօև]/g)||[]).length}
+function sylEn(w){w=w.toLowerCase().replace(/[^a-z]/g,'');if(!w)return 0;if(w.length<=3)return 1;w=w.replace(/(?:[^laeiouy]es|[^laeiouy]ed|[^laeiouy]e)$/,'').replace(/^y/,'');return Math.max(1,(w.match(/[aeiouy]{1,2}/g)||[]).length)}
+function syllables(line){return line.split(/\s+/).filter(Boolean).reduce((n,w)=>n+(ARM.test(w)?sylHy(w):sylEn(w)),0)}
+function rhymeKey(line){
+  const words=line.trim().split(/\s+/).map(w=>w.replace(/[^\p{L}']/gu,'')).filter(Boolean);if(!words.length)return null;
+  let w=words[words.length-1].toLowerCase().replace(/'/g,'');
+  if(ARM.test(w)){
+    w=w.replace(/ու/g,'U');const m=w.match(/[աեէըիոօևU][^աեէըիոօևU]*$/);return m?'hy:'+m[0]:'hy:'+w.slice(-2);
+  }
+  w=w.replace(/in$/,'ing');
+  if(w.length>3&&/[^aeiouy]e$/.test(w))w=w.slice(0,-1);
+  w=w[0]+w.slice(1).replace(/y/g,'i');
+  const m=w.match(/[aeiou]+[^aeiou]*$/);return m?'en:'+m[0]:'en:'+w.slice(-2);
+}
+const RCOL=['var(--r1)','var(--r2)','var(--r3)','var(--r4)','var(--r5)','var(--r6)'];
+function analyse(){
+  const lines=$('#pad').value.split('\n').filter(l=>l.trim());
+  const keys=lines.map(rhymeKey),counts={};keys.forEach(k=>{if(k)counts[k]=(counts[k]||0)+1});
+  const letters={};let nextL=0;
+  const tags=keys.map(k=>{if(!k)return null;if(!(k in letters))letters[k]=String.fromCharCode(65+(nextL++%26));return letters[k]});
+  const syl=lines.map(syllables),max=Math.max(16,...syl);
+  $('#analysis').innerHTML=lines.length?lines.map((l,i)=>{const solo=counts[keys[i]]<2,L=tags[i],ci=L?(L.charCodeAt(0)-65)%6:0;
+    return '<div class="aline"><span class="num">'+(i+1)+'</span><span class="tag'+(solo?' none':'')+'" style="'+(solo?'':'background:'+RCOL[ci])+'">'+(L||'·')+'</span><span class="sylbar"><i style="width:'+(syl[i]/max*100)+'%"></i></span><span class="cnt">'+syl[i]+'</span></div>'}).join(''):'<p class="muted">Write a line to see its syllables and rhyme tag.</p>';
+  const scheme=tags.map((t,i)=>counts[keys[i]]<2?'x':t).join('');
+  $('#scheme').textContent=scheme||'—';
+  const tgt=$('#schemeTarget').value,st=$('#schemeStatus');
+  if(!tgt||!lines.length){st.textContent='';st.className='status';}
+  else{
+    const ok=range(Math.floor(lines.length/4)).every(b=>{const seg=tags.slice(b*4,b*4+4),map={};for(let i=0;i<4;i++){const want=tgt[i],got=seg[i]+'|'+(counts[keys[b*4+i]]>=2);if(counts[keys[b*4+i]]<2)return false;if(map[want]===undefined){if(Object.values(map).includes(got))return false;map[want]=got}else if(map[want]!==got)return false}return true});
+    const full=lines.length>=4;
+    st.textContent=!full?'Write 4 lines to check '+tgt:ok?'Matches '+tgt+' ✓':'Not '+tgt+' yet. Check the line endings.';
+    st.className='status '+(!full?'':ok?'ok':'no');
+  }
+  const cs=curSess();if(cs&&padOwner===cs.id){cs.text=$('#pad').value;cs.stats.bars=lines.length;saveSessions()}
+}
+const SAMPLE_EN="Up at five in the dark, I'm chasing the light\nEvery fall on my face only sharpened the fight\nThey said I'm too young and my name is too small\nNow my name on the wall and I'm signing it all";
+const SAMPLE_HY="Ամեն օր նոր քայլ, ամեն քայլը՝ պայքար\nԸնկնում եմ, կանգնում, դառնում եմ քար\nԳիշերը մութ է, բայց սրտումս կրակ\nՄենակ սկսեցի, բայց կբերեմ հաղթանակ";
+const pad=$('#pad');pad.value=SAMPLE_EN;pad.placeholder='Write your first bar here. One bar per line.';
+pad.addEventListener('input',analyse);$('#schemeTarget').addEventListener('change',analyse);
+$('#padSampleEn').addEventListener('click',()=>{pad.value=SAMPLE_EN;analyse()});
+$('#padSampleHy').addEventListener('click',()=>{pad.value=SAMPLE_HY;analyse()});
+$('#padClear').addEventListener('click',()=>{pad.value='';analyse();pad.focus()});
+$('#padCopy').addEventListener('click',()=>{const done=()=>toast('Copied');try{navigator.clipboard.writeText(pad.value).then(done,()=>{pad.select();toast('Selected. Press copy on your keyboard.')})}catch(e){pad.select();toast('Selected. Press copy on your keyboard.')}});
+analyse();
+
+/* ---------------- Armenian ---------------- */
+const FAMS=[
+  ['-ար','-ar · strong, root rhymes',[['պայքար','paykar','struggle'],['քար','kar','stone'],['դար','dar','century'],['արդար','ardar','fair, just'],['կատար','katar','summit'],['համար','hamar','for, number']]],
+  ['-ակ','-ak · punchy ending',[['կրակ','krak','fire'],['հաղթանակ','haghtanak','victory'],['ժամանակ','zhamanak','time'],['մենակ','menak','alone'],['սպիտակ','spitak','white'],['դրոշակ','droshak','flag']]],
+  ['-ույս','-uys · short and bright',[['հույս','huys','hope'],['լույս','luys','light'],['լուսաբաց','lusabats','dawn (near rhyme)']]],
+  ['-ին','-in · chantable',[['միասին','miasin','together'],['գետնին','getnin','to the ground'],['երկնքին','yerknkin','to the sky'],['սրտին','srtin','to the heart'],['քամին','kamin','the wind']]],
+  ['-ել','-el · verbs (easy)',[['գրել','grel','to write'],['սիրել','sirel','to love'],['պարել','parel','to dance'],['հաղթել','haghtel','to win'],['ապրել','aprel','to live'],['թռչել','trchel','to fly']]],
+  ['-ում','-um · "in" / "-ing" (easy)',[['սրտում','srtum','in the heart'],['բեմում','bemum','on stage'],['երազում','yerazum','in a dream'],['քաղաքում','kaghakum','in the city'],['վազում','vazum','running'],['երգում','yergum','singing']]],
+  ['-ություն','-utyun · big words (easy)',[['ազատություն','azatutyun','freedom'],['համբերություն','hamberutyun','patience'],['երջանկություն','yerjankutyun','happiness'],['ճշմարտություն','chshmartutyun','truth'],['ընկերություն','ynkerutyun','friendship']]],
+  ['-ալ','-al · verbs (easy)',[['գնալ','gnal','to go'],['մնալ','mnal','to stay'],['խաղալ','khaghal','to play'],['հասկանալ','haskanal','to understand'],['մոռանալ','moranal','to forget']]]
+];
+$('#families').innerHTML=FAMS.map(([end,sub,ws])=>'<div class="panel fam"><h4>'+end+' <small>'+sub+'</small></h4><div class="chips">'+ws.map(w=>'<button class="chip" data-add="'+esc(w[0])+'"><span class="w">'+w[0]+'</span><span class="t">'+w[1]+'</span><span class="m">'+w[2]+'</span></button>').join('')+'</div></div>').join('');
+document.addEventListener('click',e=>{const c=e.target.closest('[data-add]');if(!c)return;const v=pad.value;pad.value=v+(v&&!/[\s]$/.test(v)?' ':'')+c.dataset.add;analyse();toast('Added "'+c.dataset.add+'" to the writing pad')});
+function lyric(lines){return lines.map(([hy,tr,en,cls])=>'<div class="bar"><span class="l1 hy">'+hy+'</span><span class="tr">'+tr+'</span><span class="en">'+en+'</span></div>').join('')}
+$('#hyVerse').innerHTML=lyric([
+  ['Ամեն օր նոր քայլ, ամեն քայլը՝ <span class="end">պայքար</span>','Amen or nor kayl, amen kayly paykar','Every day a new step, every step a struggle'],
+  ['Ընկնում եմ, կանգնում, դառնում եմ <span class="end">քար</span>','Ynknum em, kangnum, darnum em kar','I fall, I stand up, I turn to stone'],
+  ['Գիշերը մութ է, բայց սրտումս <span class="end b">կրակ</span>','Gishery mut e, bayts srtums krak','The night is dark, but there is fire in my heart'],
+  ['Մենակ սկսեցի, բայց կբերեմ <span class="end b">հաղթանակ</span>','Menak sksetsi, bayts kberem haghtanak','I started alone, but I will bring the victory']
+]);
+$('#hyHook').innerHTML=lyric([
+  ['Ընկա, բայց կանգնեցի, սովորեցի <span class="end">հաղթել</span>','Ynka, bayts kangnetsi, sovoretsi haghtel','I fell, but I stood up, I learned to win'],
+  ['Ամեն ցավ ինձ սովորեցրեց <span class="end">ապրել</span>','Amen tsav indz sovoretsrets aprel','Every pain taught me how to live'],
+  ['Մութ գիշերից հետո գալիս է <span class="end b">լույս</span>','Mut gisherits heto galis e luys','After a dark night comes the light'],
+  ['Պահիր գլուխդ բարձր, պահիր սրտումդ <span class="end b">հույս</span>','Pahir glukhd bardzr, pahir srtumd huys','Keep your head high, keep hope in your heart']
+]);
+
+/* ---------------- English ---------------- */
+const CHAINS=[['go the distance','no assistance','so persistent','cold resistance'],['late at night','great insight','take the flight','make it right'],['stay in my lane','pain into gain','came through the rain','same in the game'],['on my own','zone to zone','phone alone','stone to throne'],['built from the bottom','still got a problem','kill all the doubt in','fill up the cotton'],['money and power','funny the hour','sunny then sour','one of the hours']];
+$('#chains').innerHTML=CHAINS.map(c=>'<ul class="clean">'+c.map((x,i)=>'<li'+(i===0?' style="font-weight:600"':'')+'>'+x+'</li>').join('')+'</ul>').join('');
+const SEEDS=['flow','night','game','fire','mind','street','dream','money','power','pressure','light','crown'];
+const nextSeed=bag(SEEDS);
+const lad={count:0,end:0,t:null,best:store.get('ggrap.ladBest',0)};
+$('#ladBest').textContent='Best: '+(lad.best||'—');
+$('#ladNew').addEventListener('click',()=>{$('#ladWord').textContent=nextSeed();lad.count=0;$('#ladCount').textContent=0});
+$('#ladPlus').addEventListener('click',()=>{if(!lad.end)return toast('Press Start first');lad.count++;$('#ladCount').textContent=lad.count});
+$('#ladStart').addEventListener('click',()=>{
+  lad.count=0;$('#ladCount').textContent=0;lad.end=Date.now()+30000;clearInterval(lad.t);
+  lad.t=setInterval(()=>{const s=(lad.end-Date.now())/1000;$('#ladTime').textContent=Math.max(0,Math.ceil(s))+'s';
+    if(s<=0){clearInterval(lad.t);lad.end=0;if(lad.count>lad.best){lad.best=lad.count;store.set('ggrap.ladBest',lad.best);$('#ladBest').textContent='Best: '+lad.best;toast('New best: '+lad.best)}else toast(lad.count+' rhymes')}},200);
+});
+
+/* ---------------- Fast rap ---------------- */
+function laneN(){return state.click||4}
+function buildLane(){const n=laneN();$('#lane').innerHTML=range(n).map(i=>'<div class="slot" data-i="'+i+'">'+(i+1)+'</div>').join('')}
+function updateLane(now){
+  const n=laneN(),st=STYLES[state.style];if(st.folk)return;
+  const p=(now-lastBeat.time)/lastBeat.dur;if(p<0||p>=1)return;
+  const idx=Math.floor(p*n);$$('.slot').forEach((s,i)=>s.classList.toggle('on',i===idx));
+}
+function updateFastStats(){const n=laneN();$('#sps').firstChild.nodeValue=(state.bpm/60*n).toFixed(1);$('#spb').firstChild.nodeValue=n}
+buildLane();
+const TW=[
+  ['Red lorry, yellow lorry, red lorry, yellow lorry','','Classic warm-up for L and R. 8ths, then 16ths.'],
+  ['Quick tricks, slick picks, kick six bricks','','Original. Hard K and S. Keep the X crisp.'],
+  ['Unique New York, you know you need unique New York','','Lip and tongue speed.'],
+  ['Արագ-արագ, առաջ-առաջ, առանց կանգառ, առանց դադար','Arag-arag, araj-araj, arants kangar, arants dadar','Fast, fast, forward, forward, no stop, no pause. Rolled ռ and flap ր.'],
+  ['Քար քարի վրա, դար դարի վրա','Kar kari vra, dar dari vra','Stone on stone, century on century. Aspirated Ք vs. plain Դ.'],
+  ['Ծիրան, նուռ, ծիրան, նուռ, ծով ու ծաղիկ ծիծաղում','Tsiran, nur, tsiran, nur, tsov u tsaghik tsitsaghum','Apricot, pomegranate, sea and flower laughing. Drills the Ծ sound.']
+];
+$('#twisters').innerHTML=TW.map(([a,t,n])=>'<div class="twister"><span class="l1 '+(t?'hy':'')+'" style="font-weight:600;font-size:17px">'+a+'</span>'+(t?'<span class="tr" style="font-family:var(--mono);font-size:12.5px;color:var(--apricot)">'+t+'</span>':'')+'<span class="muted" style="font-size:13.5px">'+n+'</span><div class="row"><button class="btn small" data-load="boombap" data-bpm="70" data-click="2">70 · 8ths</button><button class="btn small" data-load="boombap" data-bpm="70" data-click="4">70 · 16ths</button></div></div>').join('');
+
+/* ---------------- Motivation ---------------- */
+const PROMPTS=['Write about the moment you almost quit.','Describe your room the night before everything changed.','Who doubted you? Thank them in 8 bars.','Write a letter to yourself in 5 years.','What does your family sacrifice so you can chase this?','The first win nobody saw.','Turn your biggest fear into a hook.','Write about Yerevan as if it were a person cheering for you.'];
+const nextPrompt=bag(PROMPTS);
+$('#motBtn').addEventListener('click',()=>$('#motPrompt').textContent=nextPrompt());
+
+/* ---------------- Armenian dance ---------------- */
+const METERS=[
+  ['kochari','Kochari','2/4',120,[[['D','1'],['','e'],['','&'],['T','a']],[['D','2'],['','e'],['T','&'],['','a']]],'Line dance, shoulders together, stamping feet. Rap one short idea per bar.'],
+  ['tamzara','Tamzara','9/8',130,[[['D','1'],['','2']],[['T','1'],['','2']],[['T','1'],['','2']],[['D','1'],['','2'],['T','3']]],'Count 1-2 1-2 1-2 1-2-3. Let the long last group swing your flow.'],
+  ['shalakho','Shalakho','6/8',112,[[['D','1'],['','2'],['T','3']],[['D','1'],['','2'],['T','3']]],'Two big pulses per bar, each split in three. Triplet flows fit perfectly.']
+];
+$('#meters').innerHTML=METERS.map(([k,name,m,bpm,groups,txt])=>'<div class="panel"><div class="row" style="justify-content:space-between"><h3>'+name+'</h3><span class="label">'+m+'</span></div><div class="count">'+groups.map(g=>g.map(([c,l])=>'<span class="'+(c==='D'?'d':c==='T'?'t':'')+'">'+(c==='D'?'DUM':c==='T'?'tak':l)+'</span>').join('')).join('<span class="gap"></span>')+'</div><p class="muted">'+txt+'</p><div class="row"><button class="btn primary small" data-load="'+k+'" data-bpm="'+bpm+'">Load '+name+'</button></div></div>').join('');
+$('#kochari').innerHTML=lyric([
+  ['Ուս ուսի տված, բոլորս <span class="end">միասին</span>','Us usi tvats, bolors miasin','Shoulder to shoulder, all of us together'],
+  ['Ոտքը զարկիր ուժով <span class="end">գետնին</span>','Votky zarkir uzhov getnin','Stamp your foot hard on the ground'],
+  ['Քոչարի, քոչարի, մինչև <span class="end b">առավոտ</span>','Kochari, kochari, minchev aravot','Kochari, Kochari, until the morning'],
+  ['Սրտերը տաք են, աստղերը <span class="end b">մոտ</span> · Հո՛պ!','Srtery tak en, astghery mot · Hop!','Hearts are warm, the stars are close · Hop!']
+]);
+
+/* ---------------- Style picker ---------------- */
+const MODNAME={freestyle:'Freestyle',writing:'Writing',armenian:'Armenian',english:'English',fast:'Fast rap',motivation:'Motivation',dance:'Dance vibe',armdance:'Armenian dance'};
+const RAP=[
+  {id:'boombap',core:1,name:'Boom Bap',era:'1990s · New York',bpm:'85–95 BPM',beat:['boombap',90],vibe:'Hard drums, dusty samples, lyrics first.',flow:'On the beat, every word clear. Rhymes land on the snare (beats 2 and 4).',key:'Multisyllabic rhymes and wordplay',listen:'Nas, Wu-Tang Clan, The Notorious B.I.G.',drill:'Write 4 bars where every rhyme word lands exactly on the snare.',path:['writing','english','freestyle']},
+  {id:'trap',core:1,name:'Trap',era:'2000s · Atlanta',bpm:'130–150 BPM, half-time',beat:['trap',140],click:3,vibe:'Booming 808s, rolling hi-hats, big energy.',flow:'Triplet flows, ad-libs, a hook that repeats.',key:'Triplet flow and catchy hooks',listen:'T.I., Future, Migos',drill:'Turn the click to triplets and fit 3 syllables on every beat for 8 bars.',path:['fast','motivation','writing']},
+  {id:'drill',core:1,name:'Drill',era:'2010s · Chicago, London, New York',bpm:'138–145 BPM',beat:['drill',142],vibe:'Dark, sliding 808 bass, late snares.',flow:'Cold delivery that bounces in the gaps between drums.',key:'Riding off-beat pockets',listen:'Chief Keef, Headie One, Pop Smoke',drill:'Start each line just after beat 1 instead of on it. Ride the gaps.',path:['fast','english','freestyle']},
+  {id:'oldschool',core:1,name:'Old School',era:'1980s · The Bronx',bpm:'95–110 BPM',beat:['oldschool',100],vibe:'Party rap, simple drums, the crowd shouts back.',flow:'Steady 8th notes, a rhyme at the end of every line.',key:'Clear delivery and crowd control',listen:'Run-DMC, Grandmaster Flash, LL Cool J',drill:'Write a 4-line party chant where every line ends on the same rhyme.',path:['dance','writing','freestyle']},
+  {id:'melodic',core:1,name:'Melodic Rap',era:'2010s · everywhere',bpm:'140–160 BPM, half-time',beat:['trap',150],vibe:'Half rap, half singing, emotional.',flow:'Sung hooks, stretched vowels, melody over the 808.',key:'Melody and emotion in the hook',listen:'Juice WRLD, Travis Scott, Drake',drill:'Hum a melody over the beat first, then put words on it.',path:['motivation','writing','english']},
+  {id:'chopper',core:1,name:'Fast Rap',era:'1990s · US Midwest ("chopper")',bpm:'Any tempo, 16ths or faster',beat:['fast',85],click:4,vibe:'Speed as a weapon.',flow:'16th notes and faster, planned breaths, sharp consonants.',key:'Clean syllables per second',listen:'Twista, Tech N9ne, Busta Rhymes',drill:'Climb the speed ladder: 16ths clean at 80 BPM, then add 5.',path:['fast','writing','english']},
+  {id:'conscious',core:1,name:'Conscious',era:'1980s to now',bpm:'80–95 BPM',beat:['boombap',88],vibe:'Stories, messages, real life.',flow:'Calm and clear. Every word carries meaning.',key:'Storytelling and imagery',listen:'Kendrick Lamar, Common, Lauryn Hill',drill:'Tell a true story in 8 bars: place, problem, choice, result.',path:['writing','motivation','english']},
+  {id:'battle',core:1,name:'Battle Rap',era:'Battle leagues worldwide',bpm:'A cappella or any beat',beat:['boombap',92],vibe:'You against an opponent. Punchlines win.',flow:'Setup, punchline, pause for the crowd. Rebuttals on the spot.',key:'Punchlines and comebacks',listen:'The film 8 Mile, leagues like URL and King of the Dot',drill:'Write 3 punchlines about a rival\'s shoes. The twist word goes last.',path:['freestyle','writing','english']},
+  {id:'armenian',core:1,name:'Armenian Rap',hy:'Հայերեն ռեփ',era:'Yerevan and the diaspora',bpm:'Any tempo',beat:['trap',140],vibe:'Your language, your city, your story.',flow:'Armenian stress falls on the last syllable, so line endings punch on their own.',key:'Root rhymes, not only endings',listen:'Armenian artists you love. Study how they stress the last syllable.',drill:'Write 4 bars rhyming roots like քար, դար, պայքար. No -ում endings allowed.',path:['armenian','writing','freestyle']},
+  {id:'armfolk',core:1,name:'Armenian Folk Fusion',hy:'Քոչարի ռեփ',era:'GGRap special',bpm:'Kochari 2/4 · Tamzara 9/8 · Shalakho 6/8',beat:['kochari',120],vibe:'Dhol and zurna meet rap. Wedding energy.',flow:'Short chants on the DUM, room for the crowd\'s "Hop!", speeding up.',key:'Counting odd meters',listen:'Live dhol and zurna at weddings and festivals',drill:'Load Kochari, tick Speed up, and chant the Kochari lines until 140 BPM.',path:['armdance','armenian','dance']},
+  {id:'gfunk',name:'G-Funk',era:'1990s · Los Angeles',bpm:'88–100 BPM',beat:['gfunk',94],vibe:'Funky bass, laid-back, sunny.',flow:'Relaxed and smooth, a little behind the beat.',key:'A laid-back pocket',listen:'Dr. Dre, Snoop Dogg, Warren G',drill:'Rap a verse slightly late on every line. Relaxed, never rushing.',path:['writing','english','dance']},
+  {id:'grime',name:'Grime',era:'2000s · London',bpm:'140 BPM',beat:['grime',140],vibe:'Raw, loud, British.',flow:'Choppy, fast bars in high-energy bursts.',key:'Energy in 8-bar bursts',listen:'Dizzee Rascal, Skepta, Stormzy',drill:'Spit 8 bars at full energy, rest 8 bars, repeat 4 times.',path:['fast','freestyle','english']},
+  {id:'lofi',name:'Lo-fi / Jazz Rap',era:'1990s to now',bpm:'70–90 BPM',beat:['lofi',82],vibe:'Chill, swing, jazz samples.',flow:'Conversational and relaxed, riding the swing.',key:'Swing and relaxed timing',listen:'A Tribe Called Quest, Digable Planets',drill:'Freestyle a conversation about your day over the swing beat.',path:['freestyle','writing','english']},
+  {id:'club',name:'Club Rap',era:'Everywhere',bpm:'118–128 BPM',beat:['house',124],vibe:'Party first. The beat is the star.',flow:'Short shouts, call and response, lots of space.',key:'Chantable hooks',listen:'Any club night. Watch what the crowd shouts back.',drill:'Make one 4-word shout and repeat it 8 times with different energy.',path:['dance','writing','freestyle']},
+  {id:'afro',name:'Afro & Latin',era:'Lagos · San Juan',bpm:'90–115 BPM',beat:['dembow',98],vibe:'Bounce and sway, melodic, made to dance.',flow:'Off-beat bounce, mixing rap and singing.',key:'Riding a syncopated groove',listen:'Burna Boy, Bad Bunny',drill:'Rap 4 bars hitting only the off-beat snares of the dembow.',path:['dance','writing','english']}
+];
+let myMode=store.get('ggrap.mode','freestyle');if(myMode!=='writing')myMode='freestyle';
+function renderModes(){$$('.mode').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode===myMode)))}
+document.addEventListener('click',e=>{const m=e.target.closest('[data-mode]');if(!m)return;myMode=m.dataset.mode;store.set('ggrap.mode',myMode);renderModes();renderRecipe()});
+let myStyle='trap';
+
+/* ---------------- Vibe builder ---------------- */
+// [id, name, origin, bpm range, engine preset, default emotion, core instruments, how sample-based the style usually is 0..1]
+const VSTYLE=[
+ ['boombap','Boom Bap','New York, 1990s',[85,95],'boombap','nostalgic',['Dusty drum break','Upright or sub bass','Jazz or soul piano chops','Vinyl texture'],.9],
+ ['trap','Trap','Atlanta, 2000s',[130,150],'trap','dark',['808 bass','Rolling hi-hats','Bells','Dark pads'],.2],
+ ['drill','Drill','Chicago · London · New York',[138,145],'drill','dark',['Sliding 808','Late snares','Dark strings or choir','Piano'],.3],
+ ['oldschool','Old School','The Bronx, 1980s',[95,110],'oldschool','hype',['Drum machine','Scratches','Funk bass','Brass stabs'],.6],
+ ['gfunk','G-Funk','Los Angeles, 1990s',[88,100],'gfunk','chill',['Funk bass','Whiny lead synth','Talkbox','Electric piano'],.4],
+ ['melodic','Melodic Rap','Everywhere, 2010s',[140,160],'trap','sad',['808 bass','Guitar loop','Ambient pads','Vocal chops'],.3],
+ ['lofi','Lo-fi / Jazz','1990s to now',[70,90],'lofi','chill',['Swung drums','Rhodes jazz chords','Upright bass','Vinyl crackle'],.8],
+ ['grime','Grime','London, 2000s',[138,142],'grime','aggressive',['Square-wave bass','Eski synths','Sparse hard drums','String stabs'],.1],
+ ['phonk','Phonk','Memphis · internet, 2020s',[120,140],'phonk','aggressive',['Cowbell melody','Distorted 808','Memphis vocal chops','Hard clap'],.7],
+ ['cloud','Cloud Rap','Internet, 2010s',[130,150],'trap','mysterious',['Dreamy reverb pads','Soft 808','Airy vocal chops','Sparse hi-hats'],.4],
+ ['rage','Rage','USA, 2020s',[150,165],'trap','hype',['Supersaw synth lead','Distorted 808','Fast hi-hats'],.1],
+ ['jersey','Jersey Club','Newark, 2000s to now',[135,145],'jersey','hype',['Bouncing kick pattern','Bed-squeak chops','Chopped R&B vocal','Big claps'],.6],
+ ['afro','Afrobeats','Lagos · Accra',[100,115],'afro','upbeat',['Congas and log percussion','Shakers','Plucked guitar','Warm bass'],.2],
+ ['amapiano','Amapiano','South Africa, 2010s',[110,115],'amapiano','chill',['Log drum bass','Shakers','Jazzy piano','Soft pads'],.2],
+ ['reggaeton','Reggaeton / Latin trap','Puerto Rico',[88,100],'dembow','romantic',['Dembow drums','Sub bass','Latin guitar','Vocal chops'],.2],
+ ['dancehall','Dancehall','Jamaica',[90,105],'dembow','upbeat',['Riddim drums','Synth bass','Horn stabs'],.3],
+ ['club','Club / House','Everywhere',[118,128],'house','hype',['Four-on-the-floor kick','Offbeat bass','Synth stabs','Open hi-hats'],.2],
+ ['oriental','Oriental Trap','Middle East · Caucasus',[130,145],'oriental','mysterious',['808 bass','Oud or duduk melody','Darbuka','Strings in harmonic minor'],.4],
+ ['armfolk','Armenian Folk Fusion','Armenia',[110,135],'kochari','hype',['Dhol','Zurna','Duduk','Hand claps'],.3],
+ ['rock','Rock Rap','USA, 1980s to now',[85,100],'boombap','aggressive',['Distorted guitar','Live drums','Bass guitar'],.3],
+ ['epic','Epic / Orchestral','Cinema meets rap',[70,90],'boombap','epic',['Orchestra strings','Brass','Cinematic drums','Choir'],.2],
+ ['rnb','R&B Rap','Everywhere',[65,85],'lofi','romantic',['Smooth keys','Sub bass','Finger snaps','Soft pads'],.4]
+];
+// [id, name, mode, chord progression [semitones from key, chord type], tempo nudge, instruments, words for the prompt]
+const VEMO=[
+ ['sad','Sad','minor',[[0,'m'],[8,'M'],[3,'M'],[10,'M']],-6,['Piano','Soft strings'],'melancholic, emotional'],
+ ['upbeat','Upbeat','major',[[0,'M'],[7,'M'],[9,'m'],[5,'M']],6,['Plucks','Claps'],'bright, bouncy, feel-good'],
+ ['motivational','Motivational','major',[[9,'m'],[5,'M'],[0,'M'],[7,'M']],2,['Strings','Piano','Big drums'],'uplifting, determined, triumphant'],
+ ['dark','Dark','minor',[[0,'m'],[1,'M'],[0,'m'],[10,'M']],0,['Dark bells','Low strings'],'dark, menacing'],
+ ['aggressive','Aggressive','minor',[[0,'m'],[0,'m'],[1,'M'],[0,'m']],6,['Distorted 808','Brass stabs'],'aggressive, hard-hitting'],
+ ['chill','Chill','major',[[2,'m7'],[7,'7'],[0,'maj7'],[9,'m7']],-8,['Rhodes','Soft pads'],'chill, relaxed, smooth'],
+ ['romantic','Romantic','major',[[0,'maj7'],[4,'m7'],[9,'m7'],[5,'maj7']],-4,['Electric piano','Guitar'],'romantic, warm, smooth'],
+ ['nostalgic','Nostalgic','major',[[5,'maj7'],[4,'m7'],[9,'m7'],[0,'maj7']],-4,['Vinyl texture','Piano'],'nostalgic, warm, vintage'],
+ ['hype','Hype / Party','minor',[[0,'m'],[10,'M'],[8,'M'],[7,'M']],8,['Synth lead','Claps','Vocal chops'],'energetic, party, hype'],
+ ['epic','Epic','minor',[[0,'m'],[8,'M'],[10,'M'],[0,'m']],0,['Orchestra strings','Brass','Choir'],'epic, cinematic, powerful'],
+ ['mysterious','Mysterious','harmonic minor',[[0,'m'],[7,'M'],[8,'M'],[7,'M']],-2,['Pluck arpeggio','Oud or duduk melody'],'mysterious, exotic'],
+ ['hopeful','Hopeful','major',[[5,'M'],[7,'M'],[4,'m'],[9,'m']],0,['Piano','Acoustic guitar'],'hopeful, emotional, rising']
+];
+// [name, region group, where, base style, emotion lean, signature sound]
+const VART=[
+ ['Drake','North America','Canada','melodic','chill',['Muted ambient pads','Sparse drums','R&B samples']],
+ ['Kendrick Lamar','North America','USA','boombap','dark',['Jazz and funk chords','Live bass','Unusual drum patterns']],
+ ['Travis Scott','North America','USA','cloud','dark',['Psychedelic synths','Heavy reverb','Distorted 808']],
+ ['Future','North America','USA','trap','dark',['Dark bells','Heavy 808','Fast hi-hats']],
+ ['Metro Boomin','North America','USA · producer','trap','epic',['Orchestra strings','Choir','Dark 808']],
+ ['Eminem','North America','USA','rock','aggressive',['Dramatic piano or guitar','Hard drums']],
+ ['J. Cole','North America','USA','boombap','nostalgic',['Soul samples','Warm drums','Piano']],
+ ['Kanye West','North America','USA','boombap','epic',['Sped-up soul samples','Big drums','Choir']],
+ ['Juice WRLD','North America','USA','melodic','sad',['Guitar loop','Soft 808','Emo melodies']],
+ ['Playboi Carti','North America','USA','rage','hype',['Supersaw synth lead','Distorted 808','Hypnotic loops']],
+ ['21 Savage','North America','USA','trap','dark',['Minimal dark melody','Hard 808','Sparse hi-hats']],
+ ['Lil Baby','North America','USA','trap','motivational',['Piano melody','Rolling hi-hats','Smooth 808']],
+ ['Pop Smoke','North America','USA','drill','aggressive',['Sliding 808','Drill drums','Dark choir']],
+ ['Dr. Dre','North America','USA · producer','gfunk','chill',['Simple piano riffs','Hard drums','Funk bass']],
+ ['Snoop Dogg','North America','USA','gfunk','chill',['Whiny lead synth','Funk bass','Laid-back drums']],
+ ['2Pac','North America','USA','gfunk','nostalgic',['Soulful piano','Strings','West Coast drums']],
+ ['Nas','North America','USA','boombap','nostalgic',['Jazz samples','Dusty drum break','Upright bass']],
+ ['The Notorious B.I.G.','North America','USA','boombap','upbeat',['Funk and soul samples','Hard drums']],
+ ['NF','North America','USA','epic','motivational',['Cinematic strings','Dark piano','Cinematic drums']],
+ ['Tyler, the Creator','North America','USA','rnb','romantic',['Jazzy chords','Warm synths','Soft drums']],
+ ['Mac Miller','North America','USA','lofi','chill',['Jazzy keys','Live bass','Relaxed drums']],
+ ['XXXTentacion','North America','USA','melodic','sad',['Lo-fi guitar','Distorted bass','Raw drums']],
+ ['Central Cee','Europe','UK','drill','chill',['R&B samples','Sliding 808','Melodic guitar']],
+ ['Stormzy','Europe','UK','grime','motivational',['Gospel keys','Grime drums','Square-wave bass']],
+ ['Skepta','Europe','UK','grime','aggressive',['Eski synths','Sparse hard drums']],
+ ['Dave','Europe','UK','boombap','sad',['Solo piano','Minimal drums','Strings']],
+ ['PNL','Europe','France','cloud','sad',['Dreamy reverb pads','Echoing guitar','Soft 808']],
+ ['Ninho','Europe','France','trap','motivational',['Melodic piano','Trap drums','Vocal chops']],
+ ['RAF Camora','Europe','Austria · Germany','dancehall','upbeat',['Riddim drums','Afro percussion','Melodic synths']],
+ ['Oxxxymiron','Europe','Russia','boombap','dark',['Dark piano','Dramatic strings','Hard drums']],
+ ['Miyagi & Andy Panda','Europe','Russia','rnb','romantic',['Reggae guitar','Soulful keys','Laid-back drums']],
+ ['Bad Bunny','Latin America','Puerto Rico','reggaeton','romantic',['Dembow drums','Synths','Latin guitar']],
+ ['Anuel AA','Latin America','Puerto Rico','trap','dark',['808 bass','Dark piano','Trap drums']],
+ ['Burna Boy','Africa','Nigeria','afro','upbeat',['Afro percussion','Horns','Warm bass']],
+ ['Wizkid','Africa','Nigeria','afro','romantic',['Soft guitar','Shakers','Smooth bass']],
+ ['Kabza De Small','Africa','South Africa · producer','amapiano','chill',['Log drum bass','Jazzy piano','Shakers']],
+ ['Wegz','Asia & Middle East','Egypt','oriental','mysterious',['Arabic melodies','Trap drums','808 bass']],
+ ['Divine','Asia & Middle East','India','boombap','motivational',['Indian instrument samples','Hard drums','Dhol']],
+ ['Jay Park','Asia & Middle East','South Korea','rnb','romantic',['R&B keys','Trap drums','Smooth bass']]
+];
+const slug=s=>s.toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+const VS={},EM={},AR={};
+VSTYLE.forEach(a=>VS[a[0]]={id:a[0],name:a[1],from:a[2],bpm:a[3],preset:a[4],emo:a[5],inst:a[6],samp:a[7]});
+VEMO.forEach(a=>EM[a[0]]={id:a[0],name:a[1],mode:a[2],prog:a[3],nudge:a[4],inst:a[5],words:a[6]});
+VART.forEach(a=>AR[slug(a[0])]={id:slug(a[0]),name:a[0],region:a[1],where:a[2],style:a[3],emo:a[4],sig:a[5]});
+const NOTES=['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'],SUF={m:'m',M:'',m7:'m7','7':'7',maj7:'maj7'};
+const CAT={style:'Style',emotion:'Emotion',artist:'Type beat'};
+const itemOf=s=>s.c==='style'?VS[s.id]:s.c==='emotion'?EM[s.id]:AR[s.id];
+let vibe=store.get('ggrap.vibe',null);
+if(!vibe||!Array.isArray(vibe.sel))vibe={sel:[{c:'style',id:'trap',w:8},{c:'emotion',id:'motivational',w:6}],sample:0,key:9};
+vibe.sel=vibe.sel.filter(itemOf);if(![0,.5,1].includes(vibe.sample))vibe.sample=0;if(!(vibe.key>=0&&vibe.key<12))vibe.key=9;
+let vtab='style',region='All';
+const top=o=>(Object.entries(o).sort((a,b)=>b[1]-a[1])[0]||[])[0];
+function recipe(){
+  const sw={},ew={},inst={},add=(arr,w)=>arr.forEach(x=>inst[x]=(inst[x]||0)+w);
+  vibe.sel.forEach(s=>{const it=itemOf(s);
+    if(s.c==='style'){sw[s.id]=(sw[s.id]||0)+s.w;add(it.inst,s.w)}
+    else if(s.c==='emotion'){ew[s.id]=(ew[s.id]||0)+s.w;add(it.inst,s.w*.8)}
+    else{sw[it.style]=(sw[it.style]||0)+s.w;ew[it.emo]=(ew[it.emo]||0)+s.w*.7;add(it.sig,s.w*1.1)}});
+  if(!Object.keys(sw).length){const g={sad:'melodic',upbeat:'afro',motivational:'epic',dark:'trap',aggressive:'drill',chill:'lofi',romantic:'rnb',nostalgic:'boombap',hype:'club',epic:'epic',mysterious:'oriental',hopeful:'boombap'}[top(ew)||'motivational'];sw[g]=1;add(VS[g].inst,1)}
+  const S=VS[top(sw)];if(!Object.keys(ew).length)ew[S.emo]=1;const E=EM[top(ew)];
+  // tempo: blend toward the other picks, using half- or double-time so 140 and 70 count as the same feel
+  const mid=r=>(r[0]+r[1])/2,base=mid(S.bpm);let tw=0,ts=0,nw=0,ns=0;
+  for(const [id,w] of Object.entries(sw)){const t=mid(VS[id].bpm),c=[t,t*2,t/2].reduce((a,b)=>Math.abs(b-base)<Math.abs(a-base)?b:a);tw+=w;ts+=w*c}
+  for(const [id,w] of Object.entries(ew)){nw+=w;ns+=w*EM[id].nudge}
+  let bpm=Math.round(Math.min(S.bpm[1]+6,Math.max(S.bpm[0]-6,ts/tw+ns/nw)));bpm=Math.max(60,Math.min(180,bpm));
+  let list=Object.entries(inst).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+  if(vibe.sample===1)list=['Chopped sample loop','Drum break',...list.filter(x=>!/drum/i.test(x))];
+  else if(vibe.sample===.5)list=['Chopped sample loop',...list];
+  list=[...new Set(list)].slice(0,8);
+  const total=vibe.sel.reduce((a,s)=>a+s.w,0)||1;
+  const so=Object.entries(sw).sort((a,b)=>b[1]-a[1]),S2=so[1]&&so[1][1]>=so[0][1]*.4?VS[so[1][0]]:null;
+  return {S,S2,E,bpm,list,total};
+}
+function cardFor(c,it){const on=vibe.sel.some(s=>s.c===c&&s.id===it.id);
+  const sub=c==='style'?it.bpm[0]+'–'+it.bpm[1]+' BPM · '+it.from:c==='emotion'?it.mode+' · '+it.words:it.where+' · '+VS[it.style].name;
+  const desc=c==='style'?it.inst.join(', '):c==='emotion'?it.inst.join(', '):it.sig.join(', ');
+  return '<button class="scard" data-pick="'+c+':'+it.id+'" aria-pressed="'+on+'"><span class="sn" style="font-size:22px">'+esc(it.name)+'</span><span class="sb">'+esc(sub)+'</span><span class="sv">'+esc(desc)+'</span></button>'}
+function renderPane(){
+  $$('#vtabs [data-vt]').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.vt===vtab)));
+  $('#mixCount').textContent=vibe.sel.length;
+  const p=$('#vpane');
+  if(vtab==='style')p.innerHTML='<div class="sgrid">'+VSTYLE.map(a=>cardFor('style',VS[a[0]])).join('')+'</div>';
+  else if(vtab==='emotion')p.innerHTML='<div class="sgrid">'+VEMO.map(a=>cardFor('emotion',EM[a[0]])).join('')+'</div>';
+  else if(vtab==='artist'){const regs=['All',...new Set(VART.map(a=>a[1]))];
+    p.innerHTML='<p class="muted" style="font-size:13px">Type beats copy a sound, not the artist. The beat uses the musical traits listed on each card, never the artist\'s name, voice or songs.</p><div class="regions">'+regs.map(r=>'<button data-region="'+r+'" aria-pressed="'+(r===region)+'">'+r+'</button>').join('')+'</div><div class="sgrid">'+VART.filter(a=>region==='All'||a[1]===region).map(a=>cardFor('artist',AR[slug(a[0])])).join('')+'</div>';}
+  else{const R=recipe();
+    p.innerHTML='<div class="panel" style="gap:4px"><div class="row" style="justify-content:space-between"><span class="label">How close to each pick · 1 to 10</span><div class="row"><button class="btn small" id="surprise">Surprise me</button><button class="btn small" id="clearMix">Clear</button></div></div>'+
+      (vibe.sel.length?vibe.sel.map((s,i)=>'<div class="mixrow"><span class="nm"><small>'+CAT[s.c]+'</small><b>'+esc(itemOf(s).name)+'</b></span><input type="range" min="1" max="10" value="'+s.w+'" data-w="'+i+'" id="w-'+s.c+'-'+s.id+'" aria-label="'+esc(itemOf(s).name)+' weight"><output>'+s.w+'</output><button class="x" data-rm="'+i+'" aria-label="Remove '+esc(itemOf(s).name)+'">×</button></div>').join(''):'<p class="muted">Nothing picked yet. Choose from Style, Emotion or Type beat, or press Surprise me.</p>')+'</div>';}
+}
+function renderRecipe(){
+  const R=recipe(),{S,S2,E,bpm,list,total}=R;
+  myStyle=VS[S.id]&&RAP.some(r=>r.id===S.id)?S.id:(S.id==='rnb'||S.id==='epic'?'conscious':'trap');
+  const named=vibe.sel.slice().sort((a,b)=>b.w-a.w).slice(0,2).map(s=>itemOf(s).name);
+  const title=named.length?named.join(' × '):S.name;
+  const chords=E.prog.map(([r,t])=>NOTES[(vibe.key+r)%12]+SUF[t]);
+  const preset=STYLES[S.preset];
+  const sampleTxt=['No samples: every sound is played or programmed, so the beat is 100% original.','One chopped sample loop on top of programmed drums and bass.','Built from chopped samples: a drum break, a melodic loop and texture.'][[0,.5,1].indexOf(vibe.sample)];
+  const hint=S.samp>=.7&&vibe.sample===0?S.name+' usually uses samples. Try 50 / 50.':S.samp<=.2&&vibe.sample===1?S.name+' is usually played, not sampled. 50 / 50 keeps its sound.':'';
+  const drums=preset.folk?['Dhol DUM (low)','Dhol tak (high)']:['Kick','Snare or clap','Hi-hats'];
+  const prompt=(S2?S.name+' and '+S2.name+' fusion':S.name)+' instrumental beat, '+E.words+', '+bpm+' BPM, '+NOTES[vibe.key]+' '+E.mode+', '+list.slice(0,5).join(', ').toLowerCase()+', '+['no samples, original instrumentation','light chopped sample loop over programmed drums','sample-based, chopped loops, vinyl texture'][[0,.5,1].indexOf(vibe.sample)]+', space for rap vocals, no vocals';
+  $('#recipe').innerHTML='<span class="mystyle">Your beat recipe</span><div class="big" style="font-size:clamp(34px,6vw,54px)">'+esc(title)+'</div>'+
+    (vibe.sel.length?'<div class="mixbar">'+vibe.sel.map((s,i)=>'<i style="width:'+(s.w/total*100)+'%;background:'+RCOL[i%6]+'"></i>').join('')+'</div><div class="legend">'+vibe.sel.map((s,i)=>'<span style="--c:'+RCOL[i%6]+'">'+esc(itemOf(s).name)+' '+Math.round(s.w/total*100)+'%</span>').join('')+'</div>':'')+
+    '<div class="facts"><div><span class="k">Tempo</span><span style="font-family:var(--mono);font-size:20px">'+bpm+' BPM</span></div><div><span class="k">Key</span><span><select id="keySel" aria-label="Key">'+NOTES.map((n,i)=>'<option value="'+i+'"'+(i===vibe.key?' selected':'')+'>'+n+'</option>').join('')+'</select> '+E.mode+'</span></div><div><span class="k">Chords · loop</span><span style="font-family:var(--mono)">'+chords.join(' – ')+'</span></div><div><span class="k">Drums</span><span>'+esc(preset.label)+'. '+esc(preset.info)+'</span></div></div>'+
+    '<div style="display:grid;gap:6px"><span class="k label" style="color:var(--deck-muted)">Instruments</span><div class="ichips">'+list.map((x,i)=>'<span class="'+(i<4?'core':'')+'">'+esc(x)+'</span>').join('')+'</div></div>'+
+    '<div style="display:grid;gap:4px"><span class="k label" style="color:var(--deck-muted)">Samples</span><span>'+sampleTxt+'</span>'+(hint?'<span class="hint">'+hint+'</span>':'')+'</div>'+
+    '<div style="display:grid;gap:6px"><span class="k label" style="color:var(--deck-muted)">Essentials to rap on</span><div class="ess">'+drums.map(d=>'<span>'+d+'</span>').join('')+'<span>Bass</span><span>Chords: '+chords[0]+'</span><span>Space for your voice</span></div></div>'+
+    '<div style="display:grid;gap:6px"><span class="k label" style="color:var(--deck-muted)">Suno prompt · paste into Style of Music</span><div class="prompt" id="sunoPrompt">'+esc(prompt)+'</div></div>'+
+    '<div class="row"><button class="btn primary" id="createSess">Create '+(myMode==='freestyle'?'freestyle':'writing')+' session</button><button class="btn" data-vibeplay="1">Preview beat</button><button class="btn" id="copyPrompt">Copy prompt</button></div>';
+  if(!vibe.sel.length)$('#recipe').innerHTML='<span class="mystyle">Your beat recipe</span><div class="big" style="font-size:clamp(34px,6vw,54px)">New session</div><p style="color:var(--deck-muted)">Pick at least one style, emotion or type beat. Your tempo, key, chords, instruments and Suno prompt appear here.</p><div class="row"><button class="btn primary" disabled>Create '+(myMode==='freestyle'?'freestyle':'writing')+' session</button></div>';
+}
+function applyVibe(){const R=recipe();setStyle(R.S.preset,R.bpm);state.vibe={prog:R.E.prog,key:vibe.key,sample:vibe.sample}}
+let lastTickStyle=null;
+function vibeChanged(){
+  store.set('ggrap.vibe',vibe);renderPane();renderRecipe();
+  $$('#sampleSeg [data-sample]').forEach(b=>b.setAttribute('aria-pressed',String(+b.dataset.sample===vibe.sample)));
+  if(state.playing&&state.vibe)applyVibe();
+  if(lastTickStyle!==myStyle&&typeof renderTicker==='function'){lastTickStyle=myStyle;renderTicker()}
+}
+document.addEventListener('click',e=>{
+  const t=e.target;let b;
+  if(b=t.closest('[data-vt]')){vtab=b.dataset.vt;renderPane();return}
+  if(b=t.closest('[data-region]')){region=b.dataset.region;renderPane();return}
+  if(b=t.closest('[data-pick]')){const [c,id]=b.dataset.pick.split(':'),i=vibe.sel.findIndex(s=>s.c===c&&s.id===id);
+    if(i>=0){vibe.sel.splice(i,1);toast(itemOf({c,id}).name+' removed')}else if(vibe.sel.length>=6)return toast('Up to 6 picks. Remove one in Mix.');else{vibe.sel.push({c,id,w:7});toast(itemOf({c,id}).name+' added to your mix')}
+    vibeChanged();return}
+  if(b=t.closest('[data-rm]')){vibe.sel.splice(+b.dataset.rm,1);vibeChanged();return}
+  if(b=t.closest('[data-sample]')){vibe.sample=+b.dataset.sample;vibeChanged();return}
+  if(t.closest('#clearMix')||t.closest('#clearAll')){vibe.sel=[];vibeChanged();return}
+  if(t.closest('#createSess')){createSession();return}
+  if(t.closest('#surprise')){const r=a=>a[Math.floor(Math.random()*a.length)],w=()=>1+Math.floor(Math.random()*10);
+    vibe.sel=[{c:'style',id:r(VSTYLE)[0],w:w()},{c:'emotion',id:r(VEMO)[0],w:w()}];if(Math.random()<.6)vibe.sel.push({c:'artist',id:slug(r(VART)[0]),w:w()});
+    vibe.key=Math.floor(Math.random()*12);vibeChanged();return}
+  if(t.closest('[data-vibeplay]')){applyVibe();start();toast(STYLES[state.style].label+' · '+state.bpm+' BPM · '+NOTES[vibe.key]);return}
+  if(t.closest('#copyPrompt')){const txt=$('#sunoPrompt').textContent,sel=()=>{const r=document.createRange();r.selectNodeContents($('#sunoPrompt'));const s=getSelection();s.removeAllRanges();s.addRange(r);toast('Selected. Press copy on your keyboard.')};try{navigator.clipboard.writeText(txt).then(()=>toast('Prompt copied'),sel)}catch(err){sel()}}
+});
+document.addEventListener('input',e=>{const i=e.target.dataset&&e.target.dataset.w;if(i===undefined)return;vibe.sel[+i].w=+e.target.value;e.target.nextElementSibling.textContent=e.target.value;store.set('ggrap.vibe',vibe);renderRecipe();if(state.playing&&state.vibe)applyVibe()});
+document.addEventListener('change',e=>{if(e.target.id==='keySel'){vibe.key=+e.target.value;vibeChanged()}});
+renderModes();
+
+/* ---------------- Sessions ---------------- */
+function sessDate(ts){return new Date(ts).toLocaleDateString(undefined,{month:'short',day:'numeric'})}
+function createSession(){
+  if(!vibe.sel.length)return toast('Pick at least one style, emotion or type beat first');
+  const R=recipe(),named=vibe.sel.slice().sort((a,b)=>b.w-a.w).slice(0,2).map(x=>itemOf(x).name);
+  const s={id:'s'+Date.now().toString(36)+Math.floor(Math.random()*1e4),created:Date.now(),last:Date.now(),mode:myMode,name:named.join(' × '),
+    vibe:JSON.parse(JSON.stringify(vibe)),lang:store.get('ggrap.lang','en'),style:R.S.id,styleName:R.S.name,preset:R.S.preset,bpm:R.bpm,keyName:NOTES[vibe.key]+' '+R.E.mode,
+    chords:R.E.prog.map(([r,t])=>NOTES[(vibe.key+r)%12]+SUF[t]).join(' – '),prompt:$('#sunoPrompt')?$('#sunoPrompt').textContent:'',
+    fav:false,daily:false,text:'',stats:{rounds:0,words:0,bars:0,opens:0}};
+  sessions.unshift(s);saveSessions();
+  vibe={sel:[],sample:vibe.sample,key:vibe.key};vtab='style';vibeChanged();
+  openSession(s.id,true);toast('Session saved in Sessions. Start is clear for your next one.');
+}
+function playSession(s){const keep=vibe;vibe=s.vibe;const R=recipe();vibe=keep;setStyle(s.preset,s.bpm);state.vibe={prog:R.E.prog,key:s.vibe.key,sample:s.vibe.sample};start()}
+function openSession(id,play,mode){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  curId=id;store.set('ggrap.cur',id);if(mode)s.mode=mode;s.stats.opens++;s.last=Date.now();saveSessions();
+  padOwner=null;pad.value=s.text||'';padOwner=s.id;analyse();applySessPrefs(s);
+  if(location.hash!=='#session')location.hash='session';else showTab('session');
+  window.scrollTo({top:0});
+  if(play)playSession(s);
+}
+let delArm=false;
+function renderSessHead(){
+  const s=curSess();if(!s)return;const r=RAP.find(x=>x.id===s.style);
+  const tools=(r?r.path:['english','fast']).filter(m=>m!=='freestyle'&&m!=='writing');
+  $('#sessHead').innerHTML='<span class="mystyle">'+(s.mode==='freestyle'?'Freestyle':'Writing')+' session · created '+sessDate(s.created)+'</span>'+
+    '<input class="sessname" id="sessName" value="'+esc(s.name)+'" aria-label="Session name">'+
+    '<div class="facts"><div><span class="k">Beat</span><span>'+esc(s.styleName)+' · '+s.bpm+' BPM</span></div><div><span class="k">Key</span><span>'+esc(s.keyName)+'</span></div><div><span class="k">Chords</span><span style="font-family:var(--mono)">'+esc(s.chords)+'</span></div><div><span class="k">Your work</span><span>'+s.stats.rounds+' rounds · '+s.stats.words+' words · '+s.stats.bars+' bars</span></div></div>'+
+    '<div class="row"><button class="btn" data-smode="freestyle" aria-pressed="'+(s.mode==='freestyle')+'">Freestyle</button><button class="btn" data-smode="writing" aria-pressed="'+(s.mode==='writing')+'">Write</button><span style="flex:1"></span><button class="btn primary" id="sessPlay">▶ Play beat</button></div>'+
+    '<div class="row"><button class="btn small" data-fav="'+s.id+'" aria-pressed="'+s.fav+'">★ Favourite</button><button class="btn small" data-daily="'+s.id+'" aria-pressed="'+s.daily+'">☀ '+(s.daily?'In Daily':'Send to Daily')+'</button><button class="btn small" id="sessCopy">Copy Suno prompt</button><button class="btn small" id="sessDel">'+(delArm?'Tap again to delete':'Delete')+'</button></div>'+
+    '<div class="row"><span class="mystyle">Train:</span>'+tools.map(m=>'<button class="btn small" data-goto="'+m+'">'+MODNAME[m]+'</button>').join('')+'</div>';
+}
+let sessFilter='all';
+function renderSessions(){
+  $$('#sessFilter [data-sf]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.sf===sessFilter)));
+  const list=sessions.filter(s=>sessFilter==='all'||(sessFilter==='fav'?s.fav:s.daily));
+  $('#sessList').innerHTML=list.length?list.map(s=>'<div class="sess"><div class="sess-main"><span class="label">'+(s.mode==='freestyle'?'Freestyle':'Writing')+' · '+sessDate(s.created)+'</span><span class="sess-name">'+esc(s.name)+'</span><span class="muted" style="font-size:13.5px">'+esc(s.styleName)+' · '+s.bpm+' BPM · '+esc(s.keyName)+' · '+s.stats.rounds+' rounds · '+s.stats.bars+' bars</span></div><div class="row"><button class="btn small primary" data-open="'+s.id+'">Open</button><button class="btn small" data-fav="'+s.id+'" aria-pressed="'+s.fav+'" aria-label="Favourite">★</button><button class="btn small" data-daily="'+s.id+'" aria-pressed="'+s.daily+'">☀ Daily</button></div></div>').join('')
+    :'<div class="empty"><b>'+(sessions.length?'Nothing here yet.':'No sessions yet.')+'</b><span class="muted">'+(sessions.length?'Use ★ and ☀ Daily on any session to fill this list.':'Go to Start, choose Freestyle or Write, pick a vibe and press Create session.')+'</span>'+(sessions.length?'':'<button class="btn primary" data-goto="styles">Go to Start</button>')+'</div>';
+}
+/* daily objectives: seeded by the date so they stay put all day */
+function rng(seed){let h=2166136261;for(const c of seed)h=Math.imul(h^c.charCodeAt(0),16777619);return()=>{h=Math.imul(h^(h>>>15),2246822507);h=Math.imul(h^(h>>>13),3266489909);h^=h>>>16;return(h>>>0)/4294967296}}
+function buildObjectives(salt){
+  const r=rng(dkey+salt),sh=a=>a.map(x=>[r(),x]).sort((a,b)=>a[0]-b[0]).map(x=>x[1]);
+  const pool=sessions.filter(s=>s.daily),favs=sessions.filter(s=>s.fav&&!s.daily),recent=sessions.filter(s=>!s.daily&&!s.fav).sort((a,b)=>b.last-a.last).slice(0,4);
+  const cand=[...sh(pool),...sh(favs),...recent];
+  if(!cand.length)return[
+    {id:'d1',go:'styles',why:'Getting started',text:'Create your first session on Start: choose Freestyle or Write, then pick a vibe.'},
+    {id:'d2',go:'fast',why:'Warm-up',text:'Say "Red lorry, yellow lorry" 10 times at 70 BPM in 8ths, then in 16ths.'},
+    {id:'d3',go:'freestyle',why:'Freestyle',text:'Freestyle for 2 minutes on any beat. Don\'t stop, even if you blank.'}];
+  const why=s=>s.daily?'From your daily pool':s.fav?'A favourite':'Recent session';
+  const a=cand[0],b=cand[1%cand.length],c=cand[2%cand.length];
+  const every=a.stats.rounds>=3?'every bar':'every 2 bars',scheme=['AABB','ABAB','ABBA','AAAA'][Math.floor(r()*4)],bars=b.stats.bars>=16?16:8;
+  const rs=RAP.find(x=>x.id===c.style),g=GENERAL[Math.floor(r()*GENERAL.length)];
+  const noRounds=sessions.every(s=>!s.stats.rounds),noBars=sessions.every(s=>!s.stats.bars);
+  const third=noRounds&&sessions.length>1?{text:'You haven\'t finished a freestyle round yet. Do one full 1-minute round on "'+c.name+'", no stopping.',mode:'freestyle'}
+    :noBars&&sessions.length>1?{text:'You haven\'t written any bars yet. Write 4 bars on "'+c.name+'" and check the rhyme tags.',mode:'writing'}
+    :{text:(rs?rs.name+' skill: '+rs.drill:g[0]+': '+g[1])+' Use "'+c.name+'".',mode:c.mode};
+  return[
+    {id:'f-'+a.id,sid:a.id,mode:'freestyle',why:why(a),text:'Freestyle 2 rounds on "'+a.name+'" ('+a.bpm+' BPM). New word '+every+'.'},
+    {id:'w-'+b.id,sid:b.id,mode:'writing',why:why(b),text:'Write '+bars+' new bars on "'+b.name+'" in '+scheme+'.'},
+    {id:'s-'+c.id,sid:c.id,mode:third.mode,why:'Skill of the day',text:third.text}];
+}
+function poolSig(){return sessions.filter(s=>s.daily||s.fav).map(s=>s.id+(s.daily?'d':'f')).join(',')+'|'+Math.min(sessions.length,3)}
+let daily=store.get('ggrap.daily',null);
+function ensureDaily(force){
+  const sig=poolSig();
+  if(force||!daily||daily.date!==dkey||daily.sig!==sig){
+    const salt=force?String(Date.now()):(daily&&daily.date===dkey?daily.salt:'');
+    const objs=buildObjectives(salt),keep=daily&&daily.date===dkey?daily.done:[];
+    daily={date:dkey,sig,salt,objs,done:keep.filter(id=>objs.some(o=>o.id===id))};store.set('ggrap.daily',daily);
+  }
+}
+function renderPlan(){
+  ensureDaily(false);
+  $('#todayLbl').textContent=today.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+  $('#objs').innerHTML=daily.objs.map((o,i)=>{const on=daily.done.includes(o.id);return '<div class="check obj'+(on?' done':'')+'"><input type="checkbox" id="ob-'+i+'" data-ob="'+o.id+'"'+(on?' checked':'')+'><label for="ob-'+i+'"><span class="why">'+(i+1)+' · '+esc(o.why)+'</span><span>'+esc(o.text)+'</span></label>'+(o.sid?'<button class="btn small" data-openobj="'+o.sid+'|'+o.mode+'">Open</button>':'<button class="btn small" data-goto="'+o.go+'">Open</button>')+'</div>'}).join('');
+  const pool=sessions.filter(s=>s.daily);
+  $('#dailyPool').innerHTML=pool.length?pool.map(s=>'<button class="chip" data-open="'+s.id+'"><span class="w" style="font-family:var(--body)">'+esc(s.name)+'</span><span class="m">'+esc(s.styleName)+' · '+s.bpm+' BPM</span></button>').join(''):'<p class="muted">Empty. In Sessions, tap ☀ Daily on any session to add it here.</p>';
+  $('#daysCount').textContent=days.length;
+}
+function refreshViews(){if(!$('#session').hidden)renderSessHead();if(!$('#sessions').hidden)renderSessions();if(!$('#plan').hidden)renderPlan()}
+document.addEventListener('click',e=>{
+  const t=e.target;let b;
+  if(b=t.closest('[data-open]')){openSession(b.dataset.open,false);return}
+  if(b=t.closest('[data-openobj]')){const [sid,mode]=b.dataset.openobj.split('|');openSession(sid,true,mode);return}
+  if(b=t.closest('[data-fav]')){const s=sessions.find(x=>x.id===b.dataset.fav);if(!s)return;s.fav=!s.fav;saveSessions();toast(s.fav?'Added to favourites':'Removed from favourites');refreshViews();return}
+  if(b=t.closest('[data-daily]')){const s=sessions.find(x=>x.id===b.dataset.daily);if(!s)return;s.daily=!s.daily;saveSessions();toast(s.daily?'Sent to Daily. Your objectives will use it.':'Removed from Daily');refreshViews();return}
+  if(b=t.closest('[data-sf]')){sessFilter=b.dataset.sf;renderSessions();return}
+  if(b=t.closest('[data-smode]')){const s=curSess();if(!s)return;s.mode=b.dataset.smode;saveSessions();showTab('session');return}
+  if(t.closest('#sessPlay')){const s=curSess();if(s)playSession(s);return}
+  if(t.closest('#sessCopy')){const s=curSess();if(!s)return;try{navigator.clipboard.writeText(s.prompt).then(()=>toast('Prompt copied'),()=>toast(s.prompt))}catch(err){toast(s.prompt)}return}
+  if(t.closest('#sessDel')){if(!delArm){delArm=true;renderSessHead();setTimeout(()=>{if(delArm){delArm=false;if(!$('#session').hidden)renderSessHead()}},4000);return}
+    delArm=false;sessFilter='all';sessions=sessions.filter(x=>x.id!==curId);saveSessions();curId=null;store.set('ggrap.cur',null);padOwner=null;toast('Session deleted');location.hash='sessions';return}
+  if(t.closest('#newObjs')){ensureDaily(true);renderPlan();toast('New objectives for today');return}
+});
+document.addEventListener('change',e=>{
+  if(e.target.id==='sessName'){const s=curSess();if(s){s.name=e.target.value.trim()||s.name;saveSessions()}}
+  const ob=e.target.dataset&&e.target.dataset.ob;
+  if(ob){daily.done=e.target.checked?[...new Set([...daily.done,ob])]:daily.done.filter(x=>x!==ob);store.set('ggrap.daily',daily);if(daily.done.length)markDay();if(daily.done.length===daily.objs.length)toast('All 3 done. Respect.');renderPlan()}
+});
+
+/* ---------------- Tips ticker ---------------- */
+const GENERAL=[
+  ['Breath','Mark breaths with / before you record. Never run out of air mid-punchline.'],
+  ['Timing','Tap your foot on 2 and 4. If your foot stops, your flow drifts.'],
+  ['Recording','Record every session on your phone. Listen back the next morning, not right away.'],
+  ['Writing','Write 16 bars, keep the best 8.'],
+  ['Freestyle','Stuck? Repeat your last line with a new ending. Never stop on "uhh".'],
+  ['Delivery','Smile while you rap a happy line. People can hear it.'],
+  ['Rhymes','Rhyme the last two or three syllables, not just the last letter.'],
+  ['Voice','Rap from your chest, not your throat. Drink water, skip ice before sessions.'],
+  ['Stage','Look at three spots in the crowd: left, center, right. Rotate every 4 bars.'],
+  ['Armenian','Armenian stress falls on the last syllable. Put your strongest word last.'],
+  ['Punchlines','Setup first, twist word last. The surprise has to land on the snare.'],
+  ['Hooks','A hook is 4 to 8 words people can shout after hearing it once.'],
+  ['Speed','Clean beats fast. Add 5 BPM only after a perfect run.'],
+  ['Listening','Study one verse a day. Count where the rhymes fall in the bar.']
+];
+function allTips(){
+  const own=RAP.find(r=>r.id===myStyle)||RAP[0],others=RAP.filter(r=>r!==own);
+  const styleTips=r=>[{id:r.id+'-drill',tag:r.name+' · drill',text:r.drill},{id:r.id+'-flow',tag:r.name+' · flow',text:r.flow},{id:r.id+'-key',tag:r.name+' · key skill',text:r.key+'.'}];
+  const mix=[];const gen=GENERAL.map(([t,x],i)=>({id:'g'+i,tag:t,text:x}));
+  const oth=[];others.forEach(r=>oth.push(styleTips(r)[0]));
+  while(gen.length||oth.length){if(gen.length)mix.push(gen.shift());if(oth.length)mix.push(oth.shift())}
+  return [...styleTips(own),...mix];
+}
+let saved=store.get('ggrap.saved',[]);if(!Array.isArray(saved))saved=[];
+const isSaved=id=>saved.some(t=>t.id===id);
+function tipBtn(t,dup){return '<button class="tip-btn'+(isSaved(t.id)?' saved':'')+'" data-tip="'+t.id+'"'+(dup?' tabindex="-1" aria-hidden="true"':'')+' title="'+(isSaved(t.id)?'Saved. Click to remove':'Click to save')+'"><span class="tg">'+esc(t.tag)+'</span><span class="tx">'+esc(t.text)+'</span><span class="st">'+(isSaved(t.id)?'★':'☆')+'</span></button>'}
+let TIPMAP={};
+function renderTicker(){
+  const tips=allTips();TIPMAP={};tips.forEach(t=>TIPMAP[t.id]=t);
+  const tr=$('#tkTrack');tr.innerHTML=tips.map(t=>tipBtn(t,false)).join('')+tips.map(t=>tipBtn(t,true)).join('');
+  requestAnimationFrame(()=>tr.style.setProperty('--tk-dur',Math.max(40,tr.scrollWidth/2/45)+'s'));
+  renderSaved();
+}
+function refreshStars(){$$('.tip-btn').forEach(b=>{const on=isSaved(b.dataset.tip);b.classList.toggle('saved',on);b.querySelector('.st').textContent=on?'★':'☆';b.title=on?'Saved. Click to remove':'Click to save'})}
+function renderSaved(){
+  $('#tkSaved').textContent='★ '+saved.length;
+  $('#savedList').innerHTML=saved.length?saved.slice().reverse().map(t=>'<div class="saveditem"><div><div class="tg">'+esc(t.tag)+'</div><div>'+esc(t.text)+'</div></div><button class="btn small" data-unsave="'+t.id+'">Remove</button></div>').join(''):'<p class="muted">No saved tips yet. The tips bar at the top scrolls through ideas for your style. Tap one to keep it here.</p>';
+}
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-tip]'),u=e.target.closest('[data-unsave]');
+  if(b){const t=TIPMAP[b.dataset.tip];if(!t)return;if(isSaved(t.id)){saved=saved.filter(x=>x.id!==t.id);toast('Removed from saved tips')}else{saved.push({id:t.id,tag:t.tag,text:t.text});toast('Tip saved ★')}store.set('ggrap.saved',saved);refreshStars();renderSaved()}
+  if(u){saved=saved.filter(x=>x.id!==u.dataset.unsave);store.set('ggrap.saved',saved);refreshStars();renderSaved()}
+});
+vibeChanged();lastTickStyle=myStyle;renderTicker();
+
+/* ---------------- Boot ---------------- */
+setStyle('boombap');setClick(0);
+{const cs0=curSess();if(cs0){padOwner=null;pad.value=cs0.text||'';padOwner=cs0.id;analyse();applySessPrefs(cs0)}}
+showTab(location.hash.slice(1));
+})();
+</script>

@@ -28,6 +28,7 @@ SR = 44100
 HERE = Path(__file__).parent
 SAMPLES = HERE / "samples"
 TAIL = 2.5  # seconds of reverb tail kept after bar 4
+BPM = None  # set by --bpm to render the same generation at another tempo
 
 PC = {"C": 0, "C#": 1, "D": 2, "D#": 3, "E": 4, "F": 5, "F#": 6, "G": 7, "G#": 8, "A": 9, "A#": 10, "B": 11}
 NOTE_RE = re.compile(r"_([A-G]#?)(-?\d)_v(\d)")
@@ -223,7 +224,7 @@ def finish(mix: Mix, levels: dict, dusty: bool) -> np.ndarray:
 # ---------------------------------------------------------------- styles
 
 def boombap(instr) -> dict:
-    key, bpm = 2, 90  # D minor
+    key, bpm = 2, BPM or 90  # D minor
     kick, snare, clap = drum("Rap_Kit_00"), drum("Rap_Kit_02"), drum("TR808_03")
     hat, ohat, ghost = drum("Natural_Kit_06"), drum("Natural_Kit_10"), drum("Natural_Kit_02")
     toms = [drum("Natural_Kit_05"), drum("Natural_Kit_07"), drum("Natural_Kit_09")]
@@ -301,7 +302,7 @@ def boombap(instr) -> dict:
 
 
 def trap(instr) -> dict:
-    key, bpm = 5, 140  # F minor, half-time feel
+    key, bpm = 5, BPM or 140  # F minor, half-time feel
     kick, snare, clap = drum("Rap_Kit_00"), drum("TR808_02"), drum("TR808_03")
     hat, ohat = drum("TR808_07"), drum("TR808_11")
     toms = [drum("TR808_05"), drum("TR808_08"), drum("TR808_10")]
@@ -403,22 +404,28 @@ def transitions(m: Mix, kind: str, fill: float, snare, toms, hat, ohat, kick):
 
 
 def main():
+    """python generate.py <style> <out_dir> [bpm ...] -> <out_dir>/<style>/<bpm>/<A-D>.flac + manifest.json"""
+    global BPM
     style = sys.argv[1] if len(sys.argv) > 1 else "boombap"
     out = Path(sys.argv[2] if len(sys.argv) > 2 else HERE / "out") / style
-    out.mkdir(parents=True, exist_ok=True)
+    tempos = [int(x) for x in sys.argv[3:]] or [None]
     instr = {"piano": Sampler.piano(), "pizz": Sampler.vsco("Strings/Violin Section/Pizz"),
              "violins": Sampler.vsco("Strings/Violin Section/susVib"), "cellos": Sampler.vsco("Strings/Cello Section/susvib"),
              "bass": Sampler.vsco("Strings/Solo Contrabass/Pizz"), "flute": Sampler.vsco("Woodwinds/Flute/susvib")}
-    gen = {"boombap": boombap, "trap": trap}[style](instr)
-    beat = 60 / gen["bpm"]
-    manifest = {"style": gen["style"], "bpm": gen["bpm"], "key": gen["key"], "bars": 4,
-                "loop_seconds": round(16 * beat, 6), "versions": []}
-    for vid, name, prog, transition, m in gen["versions"]:
-        audio = finish(m, gen["levels"], gen["dusty"])
-        sf.write(out / f"{vid}.wav", audio, SR, subtype="PCM_16")
-        manifest["versions"].append({"id": vid, "name": name, "file": f"{vid}.wav",
-                                     "chords": prog, "transition": transition})
-        print(f"{style} {vid}: {name} ({' - '.join(prog)}), transition: {transition}")
+    manifest = None
+    for tempo in tempos:
+        BPM = tempo
+        gen = {"boombap": boombap, "trap": trap}[style](instr)
+        d = out / str(gen["bpm"])
+        d.mkdir(parents=True, exist_ok=True)
+        if manifest is None:
+            manifest = {"style": gen["style"], "key": gen["key"], "bars": 4, "default_bpm": gen["bpm"], "tempos": [],
+                        "versions": [{"id": v, "name": n, "chords": p, "transition": t} for v, n, p, t, _ in gen["versions"]]}
+        manifest["tempos"].append(gen["bpm"])
+        for vid, name, prog, transition, m in gen["versions"]:
+            sf.write(d / f"{vid}.flac", finish(m, gen["levels"], gen["dusty"]), SR, subtype="PCM_16")
+        print(f"{style} at {gen['bpm']} BPM: {', '.join(v[0] + ' ' + v[1] for v in gen['versions'])}")
+    manifest["tempos"].sort()
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
 
