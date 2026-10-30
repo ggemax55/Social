@@ -46,6 +46,10 @@ rep(".toast{position:fixed;", r""".lp-row{display:flex;flex-wrap:wrap;align-item
 .tk-main{display:grid;min-width:0}
 @media (max-width:620px){.take{grid-template-columns:minmax(0,1fr)}}
 .daw-transport{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+#dawWork{display:grid;gap:14px}
+.recpanel .rec{background:var(--surface-2);color:var(--fg)}
+.recpanel .rec.on{background:#E5484D;color:#fff}
+.recpick button:disabled{opacity:.5}
 .daw-transport .pos{font-family:var(--mono);font-size:20px;margin-left:auto}
 .track{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
 .track-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
@@ -80,7 +84,6 @@ rep("""    <div class="deck-row">
       <div class="lp-now"><span class="k" id="lpGen">Beat</span><b id="lpNow">Open a session</b></div>
       <label for="lpBpm">BPM <select id="lpBpm"></select></label>
       <label for="lpVol">Volume <input type="range" id="lpVol" min="0" max="1" step="0.01" value="0.85" style="accent-color:var(--apricot);width:110px"></label>
-      <button class="rec" id="recBtn" aria-label="Record"><span id="recTxt">Rec</span></button>
     </div>
     <div class="lp-bars" id="lpBars" aria-hidden="true"><span><i></i></span><span><i></i></span><span><i></i></span><span><i></i></span></div>
     <div id="synthDeck" hidden>
@@ -109,26 +112,29 @@ rep("""  <div class="sdetail" id="sessHead"></div>
     <div class="mnotice" id="mixNotice" role="status" aria-live="polite"><span class="dot"></span><span>Tap a version to start with it.</span></div>
     <div class="row" id="chainRow" hidden><span class="label">Chain</span><span id="chain"></span><button class="btn small" id="chainClear">Clear</button></div>
   </div>
-  <div class="panel">
-    <div class="row" style="justify-content:space-between"><h3>Takes</h3><span class="muted" style="font-size:13px">Press <b>● Rec</b> in the top bar while you rap. Wear headphones so the beat doesn't leak into the mic.</span></div>
+  <div class="panel recpanel">
+    <div class="row" style="justify-content:space-between"><h3>Record</h3><span class="muted" style="font-size:13px">Wear headphones so the beat doesn't leak into the mic.</span></div>
+    <div class="row">
+      <div class="recpick lseg" role="group" aria-label="What to record"><button id="recBeat" aria-pressed="true">Beat</button><button id="recVocal" aria-pressed="true">Vocal</button></div>
+      <button class="rec" id="recBtn" aria-label="Record"><span id="recTxt">Record</span></button>
+      <span class="muted" style="font-size:13px">Pick Beat, Vocal or both. The beat plays either way.</span>
+    </div>
+    <h3 style="font-size:18px">Takes</h3>
     <div id="takes"></div>
   </div>
 </section>
 
 <!-- DAW -->
 <section class="mod" id="daw" role="tabpanel" hidden>
-  <div class="intro"><span class="label">Studio</span><h2>DAW</h2><p>Two tracks: the beat and your vocal. Record over the beat, add effects, then export the mix as WAV or MP3.</p></div>
-  <div class="panel">
-    <div class="row">
-      <label class="label" for="dawLoops">Beat from your session</label>
-      <select id="dawLoops"><option value="4">4 loops</option><option value="8" selected>8 loops</option><option value="16">16 loops</option></select>
-      <button class="btn small primary" id="dawBounce">Make beat</button>
-      <span class="btn small filebtn">Import beat<input type="file" id="importBeat" accept="audio/*"></span>
-      <span class="btn small filebtn">Import vocal<input type="file" id="importVocal" accept="audio/*"></span>
-      <span class="muted" style="font-size:13px">Or open a take from a session.</span>
-    </div>
+  <div class="intro"><span class="label">Studio</span><h2>DAW</h2><p>Open a take from any session, record over it, polish the lines with effects, then export or save it to your history.</p></div>
+  <div class="panel" id="dawEmpty">
+    <b>No recording open</b>
+    <span class="muted">Go to a session, record a take, then press <b>Open in DAW</b>. Or open something you saved below.</span>
+    <div class="row"><button class="btn small primary" data-goto="sessions">Go to Sessions</button></div>
   </div>
+  <div id="dawWork" hidden>
   <div class="daw-transport">
+    <span class="label" id="dawSource"></span>
     <button class="btn" id="dawToStart" aria-label="Back to start">⏮</button>
     <button class="btn primary" id="dawPlay">▶ Play</button>
     <button class="btn rec" id="dawRec" style="background:var(--surface);color:var(--fg);border:1px solid var(--line)">Record vocal</button>
@@ -150,7 +156,12 @@ rep("""  <div class="sdetail" id="sessHead"></div>
   <div class="track">
     <div class="track-head"><h3>Master</h3><span class="muted">Both tracks together, with a limiter so the export never clips.</span></div>
     <div class="vctl"><label for="masterVol">Vol <input type="range" id="masterVol" min="0" max="1.2" step="0.01"></label><div class="meter" id="dawMeter"><i></i></div></div>
-    <div class="row"><button class="btn primary" data-export="wav">Export WAV</button><button class="btn primary" data-export="mp3">Export MP3</button></div>
+    <div class="row"><button class="btn primary" id="dawSave">Save to history</button><button class="btn" data-export="wav">Export WAV</button><button class="btn" data-export="mp3">Export MP3</button></div>
+  </div>
+  </div>
+  <div class="panel">
+    <h3>History</h3>
+    <div id="history"></div>
   </div>
 </section>""")
 

@@ -162,70 +162,86 @@ function micError(e) {
   if (e && e.name === 'NotFoundError') return 'No microphone found. Plug one in or check your sound settings.';
   return 'The microphone could not start in this view. Open GGRap.html in Chrome to record.';
 }
+const recWant = k => $('#rec' + k).getAttribute('aria-pressed') === 'true';
 async function recToggle() {
   if (REC.on) return recStop();
   const s = curSess();
-  if (!s) { toast('Open a session first, then press Rec'); return }
-  let mic; try { mic = await getMic() } catch (e) { toast(micError(e)); return }
-  if (!LE.playing) await LE.play();
-  const opts = MIME ? { mimeType: MIME } : {}, mv = new MediaRecorder(mic, opts), mb = new MediaRecorder(LE.recDest.stream, opts);
-  const cv = [], cb = [], startedAt = Date.now(); let stopped = 0;
-  mv.ondataavailable = e => e.data.size && cv.push(e.data); mb.ondataavailable = e => e.data.size && cb.push(e.data);
+  if (!s) { toast('Open a session first, then press Record'); return }
+  const wantBeat = recWant('Beat'), wantVocal = recWant('Vocal');
+  if (!wantBeat && !wantVocal) { toast('Choose what to record: Beat, Vocal, or both'); return }
+  let mic = null;
+  if (wantVocal) { try { mic = await getMic() } catch (e) { toast(micError(e)); return } }
+  if (!LE.playing) await LE.play(); // the beat always plays so you can rap to it, even when it isn't recorded
+  const opts = MIME ? { mimeType: MIME } : {}, parts = {}, startedAt = Date.now(), recs = [];
+  const add = (key, stream) => { const mr = new MediaRecorder(stream, opts), chunks = []; mr.ondataavailable = e => e.data.size && chunks.push(e.data); parts[key] = { mr, chunks }; recs.push(mr) };
+  if (wantVocal) add('vocal', mic);
+  if (wantBeat) add('beat', LE.recDest.stream);
+  let stopped = 0;
   const done = async () => {
-    if (++stopped < 2) return;
-    const all = await takesFor(s.id), dur = (Date.now() - startedAt) / 1000;
-    const take = { id: 't' + Date.now(), sessionId: s.id, created: startedAt, dur, name: 'Take ' + (all.length + 1), mode: s.mode,
-      vocal: new Blob(cv, { type: mv.mimeType }), beat: new Blob(cb, { type: mb.mimeType }), bpm: LE.tempo,
-      offset: -((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + 0.015) };
+    if (++stopped < recs.length) return;
+    const all = await takesFor(s.id), dur = (Date.now() - startedAt) / 1000, blob = k => parts[k] ? new Blob(parts[k].chunks, { type: parts[k].mr.mimeType }) : null;
+    const take = { id: 't' + Date.now(), sessionId: s.id, sessionName: s.name, created: startedAt, dur, name: 'Take ' + (all.length + 1), mode: s.mode,
+      vocal: blob('vocal'), beat: blob('beat'), bpm: LE.tempo, offset: wantBeat && wantVocal ? -((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + 0.015) : 0 };
     await IDB.put(take); renderTakes(); toast('Saved ' + take.name + ' · ' + fmtTime(dur));
   };
-  mv.onstop = done; mb.onstop = done;
-  mv.start(250); mb.start(250); REC.mr = [mv, mb]; REC.on = true; REC.t0 = performance.now();
+  recs.forEach(mr => { mr.onstop = done; mr.start(250) });
+  REC.mr = recs; REC.on = true; REC.t0 = performance.now();
   renderRec();
 }
 function recStop() { REC.mr.forEach(m => m.state !== 'inactive' && m.stop()); REC.on = false; renderRec() }
-function renderRec() { $('#recBtn').classList.toggle('on', REC.on); $('#recBtn').setAttribute('aria-label', REC.on ? 'Stop recording' : 'Record'); if (!REC.on) $('#recTxt').textContent = 'Rec' }
+function renderRec() {
+  const b = $('#recBtn'); if (!b) return;
+  b.classList.toggle('on', REC.on); b.setAttribute('aria-label', REC.on ? 'Stop recording' : 'Record');
+  if (!REC.on) $('#recTxt').textContent = 'Record';
+  $$('.recpick button').forEach(x => x.disabled = REC.on);
+}
 
 /* ---------------- takes: saved on this device (IndexedDB) ---------------- */
 const IDB = {
-  db: null, mem: new Map(),
+  db: null, mem: { takes: new Map(), projects: new Map() },
   async open() {
     if (this.db !== null) return this.db;
     try {
-      this.db = await new Promise((res, rej) => { const r = indexedDB.open('ggrap', 1); r.onupgradeneeded = () => r.result.createObjectStore('takes', { keyPath: 'id' }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error) });
+      this.db = await new Promise((res, rej) => {
+        const r = indexedDB.open('ggrap', 2);
+        r.onupgradeneeded = () => { for (const n of ['takes', 'projects']) if (!r.result.objectStoreNames.contains(n)) r.result.createObjectStore(n, { keyPath: 'id' }) };
+        r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+      });
     } catch (e) { this.db = false }
     return this.db;
   },
-  async run(mode, fn) {
+  async run(store, mode, fn) {
     const db = await this.open();
-    if (!db) return fn(null);
-    return new Promise((res, rej) => { const t = db.transaction('takes', mode), r = fn(t.objectStore('takes')); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error) });
+    if (!db) { const r = fn(null, this.mem[store]); return r && r.result }
+    return new Promise((res, rej) => { const t = db.transaction(store, mode), r = fn(t.objectStore(store)); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error) });
   },
-  put(x) { return this.run('readwrite', st => st ? st.put(x) : (this.mem.set(x.id, x), null)) },
-  del(id) { return this.run('readwrite', st => st ? st.delete(id) : (this.mem.delete(id), null)) },
-  async all() { const r = await this.run('readonly', st => st ? st.getAll() : null); return r || [...this.mem.values()] },
-  async get(id) { const r = await this.run('readonly', st => st ? st.get(id) : null); return r || this.mem.get(id) }
+  put(x, store = 'takes') { return this.run(store, 'readwrite', (st, m) => st ? st.put(x) : (m.set(x.id, x), null)) },
+  del(id, store = 'takes') { return this.run(store, 'readwrite', (st, m) => st ? st.delete(id) : (m.delete(id), null)) },
+  async all(store = 'takes') { return (await this.run(store, 'readonly', (st, m) => st ? st.getAll() : { result: [...m.values()] })) || [] },
+  async get(id, store = 'takes') { return this.run(store, 'readonly', (st, m) => st ? st.get(id) : { result: m.get(id) }) }
 };
 async function takesFor(sid) { return (await IDB.all()).filter(t => t.sessionId === sid).sort((a, b) => b.created - a.created) }
 let takePlay = null, takeDelArm = null;
 async function renderTakes() {
   const s = curSess(), box = $('#takes'); if (!s || !box) return;
   const list = await takesFor(s.id);
-  box.innerHTML = list.length ? list.map(t => '<div class="take"><div class="tk-main"><b>' + esc(t.name) + '</b><span class="muted">' + fmtTime(t.dur) + ' · ' + new Date(t.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + sessDate(t.created) + '</span></div><div class="row"><button class="btn small" data-tplay="' + t.id + '">' + (takePlay && takePlay.id === t.id ? '■ Stop' : '▶ Play') + '</button><button class="btn small primary" data-tdaw="' + t.id + '">Open in DAW</button><button class="btn small" data-tdel="' + t.id + '">' + (takeDelArm === t.id ? 'Tap again to delete' : 'Delete') + '</button></div></div>').join('')
-    : '<p class="muted">No takes yet. Press <b>● Rec</b> in the bar at the top while you rap. Your voice and the beat are saved together, on this computer.</p>';
+  box.innerHTML = list.length ? list.map(t => '<div class="take"><div class="tk-main"><b>' + esc(t.name) + '</b><span class="muted">' + (t.beat && t.vocal ? 'Beat + vocal' : t.vocal ? 'Vocal only' : 'Beat only') + ' · ' + fmtTime(t.dur) + ' · ' + new Date(t.created).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + ' · ' + sessDate(t.created) + '</span></div><div class="row"><button class="btn small" data-tplay="' + t.id + '">' + (takePlay && takePlay.id === t.id ? '■ Stop' : '▶ Play') + '</button><button class="btn small primary" data-tdaw="' + t.id + '">Open in DAW</button><button class="btn small" data-tdel="' + t.id + '">' + (takeDelArm === t.id ? 'Tap again to delete' : 'Delete') + '</button></div></div>').join('')
+    : '<p class="muted">No takes yet. Choose Beat, Vocal or both above, press <b>Record</b> and rap. Takes are saved on this computer.</p>';
 }
 async function playTake(id) {
   if (takePlay) { const was = takePlay.id; takePlay.srcs.forEach(s => { try { s.stop() } catch (e) { } }); takePlay = null; renderTakes(); if (was === id) return }
   const t = await IDB.get(id); if (!t) return;
   if (LE.playing) LE.stop(); if (DAW.playing) dawStop();
   ensureCtx(); if (ctx.state === 'suspended') await ctx.resume();
-  const [vb, bb] = await Promise.all([decode(await t.vocal.arrayBuffer()), decode(await t.beat.arrayBuffer())]);
+  const dec = async b => b ? decode(await b.arrayBuffer()) : null;
+  const [vb, bb] = await Promise.all([dec(t.vocal), dec(t.beat)]);
   const at = ctx.currentTime + 0.1, srcs = [];
   for (const [buf, pos] of [[bb, 0], [vb, t.offset || 0]]) {
+    if (!buf) continue;
     const s = ctx.createBufferSource(); s.buffer = buf; s.connect(ctx.destination);
     if (pos >= 0) s.start(at + pos); else s.start(at, -pos); srcs.push(s);
   }
-  srcs[0].onended = () => { if (takePlay && takePlay.id === id) { takePlay = null; renderTakes() } };
+  srcs.reduce((a, b) => a.buffer.duration >= b.buffer.duration ? a : b).onended = () => { if (takePlay && takePlay.id === id) { takePlay = null; renderTakes() } };
   takePlay = { id, srcs }; renderTakes();
 }
 
@@ -262,7 +278,7 @@ function buildGraph(c, at, from) {
 }
 let dawMeter = null;
 async function dawPlay(from) {
-  if (!DAW.beat && !DAW.vocal) { toast('Load a take or make a beat first'); return }
+  if (!DAW.beat && !DAW.vocal) { toast('Open a take from a session first'); return }
   if (LE.playing) LE.stop(); if (state.playing) stop();
   ensureCtx(); if (ctx.state === 'suspended') await ctx.resume();
   dawStop(true);
@@ -288,12 +304,12 @@ function dawDrawHead() {
 }
 let dawRec = null;
 async function dawRecStart() {
-  if (!DAW.beat) { toast('Load a beat first: a take, Make beat, or Import'); return }
+  if (!DAW.beat) { toast('Open a take that has the beat in it, then record your vocal over it'); return }
   let mic; try { mic = await getMic() } catch (e) { toast(micError(e)); return }
   const chunks = [], mr = new MediaRecorder(mic, MIME ? { mimeType: MIME } : {});
   mr.ondataavailable = e => e.data.size && chunks.push(e.data);
   mr.onstop = async () => {
-    DAW.vocal = await decode(await new Blob(chunks, { type: mr.mimeType }).arrayBuffer());
+    DAW.vocalBlob = new Blob(chunks, { type: mr.mimeType }); DAW.vocal = await decode(await DAW.vocalBlob.arrayBuffer());
     DAW.offset = -((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + 0.015); DAW.vocalLabel = 'Recorded in the DAW';
     dawUI(); toast('Vocal recorded');
   };
@@ -302,26 +318,40 @@ async function dawRecStart() {
 }
 function dawRecStop() { if (dawRec && dawRec.state !== 'inactive') dawRec.stop(); dawRec = null; DAW.recording = false; if (DAW.playing) dawStop(true); dawUI() }
 
-async function bounceBeat(loops) {
-  const s = curSess();
-  if (!LE.gen) await LE.setGen(s ? genFor(s.style) : 'boombap', s ? (s.loopTempo || s.bpm) : null);
-  const m = LE.man[LE.gen], t = LE.tempo, L = LE.loopSec(t), ids = m.versions.map(v => v.id);
-  const seq = Array.from({ length: loops }, (_, i) => LE.chain.length ? LE.chain[i % LE.chain.length] : ids[Math.floor(i / 2) % ids.length]);
-  const last = LE.bufs[LE.gen + '/' + t + '/' + seq[seq.length - 1]];
-  const oc = new OfflineAudioContext(2, Math.ceil((L * (loops - 1) + last.duration) * 44100), 44100);
-  seq.forEach((id, i) => { const src = oc.createBufferSource(); src.buffer = LE.bufs[LE.gen + '/' + t + '/' + id]; src.connect(oc.destination); src.start(i * L) });
-  DAW.beat = await oc.startRendering(); DAW.bpm = t; DAW.pos = 0;
-  DAW.name = 'GGRap-' + m.style.replace(/\W+/g, '') + '-' + t + 'bpm';
-  DAW.beatLabel = m.style + ' · ' + t + ' BPM · ' + seq.join(' ');
-  dawUI(); toast('Beat ready: ' + loops + ' loops (' + seq.join(' ') + ')');
-}
 async function openTakeInDaw(id) {
   const t = await IDB.get(id); if (!t) return;
-  ensureCtx();
-  DAW.beat = await decode(await t.beat.arrayBuffer()); DAW.vocal = await decode(await t.vocal.arrayBuffer());
-  DAW.offset = t.offset || 0; DAW.bpm = t.bpm || 90; DAW.pos = 0; DAW.name = 'GGRap-' + t.name.replace(/\W+/g, '');
-  DAW.beatLabel = 'From ' + t.name; DAW.vocalLabel = t.name;
-  location.hash = 'daw'; dawUI(); toast(t.name + ' loaded in the DAW');
+  ensureCtx(); if (DAW.playing) dawStop();
+  const dec = async b => b ? decode(await b.arrayBuffer()) : null;
+  DAW.beat = await dec(t.beat); DAW.vocal = await dec(t.vocal); DAW.beatBlob = t.beat; DAW.vocalBlob = t.vocal;
+  DAW.offset = t.offset || 0; DAW.bpm = t.bpm || 90; DAW.pos = 0; DAW.name = 'GGRap-' + (t.sessionName || 'session').replace(/\W+/g, '') + '-' + t.name.replace(/\W+/g, '');
+  DAW.source = { sessionId: t.sessionId, sessionName: t.sessionName || (sessions.find(x => x.id === t.sessionId) || {}).name || 'Session', take: t.name };
+  DAW.beatLabel = DAW.beat ? 'Beat from ' + t.name : null; DAW.vocalLabel = DAW.vocal ? 'Vocal from ' + t.name : null; DAW.projectId = null;
+  location.hash = 'daw'; dawUI(); toast(t.name + ' is open in the DAW');
+}
+async function dawSave() {
+  if (!DAW.beat && !DAW.vocal) return;
+  const id = DAW.projectId || 'p' + Date.now(), old = DAW.projectId ? await IDB.get(id, 'projects') : null;
+  const proj = { id, created: old ? old.created : Date.now(), saved: Date.now(), name: (DAW.source ? DAW.source.sessionName + ' · ' + DAW.source.take : 'Recording'),
+    source: DAW.source || null, beat: DAW.beatBlob || null, vocal: DAW.vocalBlob || null, offset: DAW.offset, bpm: DAW.bpm,
+    tr: JSON.parse(JSON.stringify(DAW.tr)), master: { ...DAW.master }, dur: dawLen(), fileName: DAW.name };
+  await IDB.put(proj, 'projects'); DAW.projectId = id; dawUI(); toast(old ? 'Saved changes to history' : 'Saved to history');
+}
+async function openProject(id) {
+  const p = await IDB.get(id, 'projects'); if (!p) return;
+  ensureCtx(); if (DAW.playing) dawStop();
+  const dec = async b => b ? decode(await b.arrayBuffer()) : null;
+  DAW.beat = await dec(p.beat); DAW.vocal = await dec(p.vocal); DAW.beatBlob = p.beat; DAW.vocalBlob = p.vocal;
+  DAW.offset = p.offset; DAW.bpm = p.bpm; DAW.tr = JSON.parse(JSON.stringify(p.tr)); DAW.master = { ...p.master };
+  DAW.source = p.source; DAW.name = p.fileName; DAW.projectId = p.id; DAW.pos = 0;
+  DAW.beatLabel = DAW.beat ? 'Beat' : null; DAW.vocalLabel = DAW.vocal ? 'Vocal' : null;
+  dawUI(); window.scrollTo({ top: 0 }); toast(p.name + ' opened');
+}
+let histDelArm = null;
+async function renderHistory() {
+  const box = $('#history'); if (!box) return;
+  const list = (await IDB.all('projects')).sort((a, b) => b.saved - a.saved);
+  box.innerHTML = list.length ? list.map(p => '<div class="take"><div class="tk-main"><b>' + esc(p.name) + '</b><span class="muted">' + fmtTime(p.dur) + ' · saved ' + sessDate(p.saved) + ' ' + new Date(p.saved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + (p.id === DAW.projectId ? ' · open now' : '') + '</span></div><div class="row"><button class="btn small primary" data-hopen="' + p.id + '">Open</button><button class="btn small" data-hdel="' + p.id + '">' + (histDelArm === p.id ? 'Tap again to delete' : 'Delete') + '</button></div></div>').join('')
+    : '<p class="muted">Nothing saved yet. Open a take from a session, polish it here, then press <b>Save to history</b>.</p>';
 }
 function drawWave(canvas, buf) {
   const w = canvas.width = canvas.clientWidth * (window.devicePixelRatio || 1), h = canvas.height = canvas.clientHeight * (window.devicePixelRatio || 1);
@@ -345,8 +375,13 @@ function dawUI() {
   $('#dawPlay').textContent = DAW.playing && !DAW.recording ? '■ Stop' : '▶ Play';
   $('#dawRec').classList.toggle('on', DAW.recording); $('#dawRec').textContent = DAW.recording ? 'Stop recording' : 'Record vocal';
   $('#dawPos').textContent = fmtTime(DAW.pos) + ' / ' + fmtTime(L);
-  $('#beatLabel').textContent = DAW.beat ? (DAW.beatLabel || 'Beat') + ' · ' + fmtTime(DAW.beat.duration) : 'Empty: make a beat, open a take, or import a file';
-  $('#vocalLabel').textContent = DAW.vocal ? (DAW.vocalLabel || 'Vocal') + ' · ' + fmtTime(DAW.vocal.duration) : (DAW.recording ? 'Recording…' : 'Empty: press ● Record vocal, or import a file');
+  $('#beatLabel').textContent = DAW.beat ? (DAW.beatLabel || 'Beat') + ' · ' + fmtTime(DAW.beat.duration) : 'No beat in this recording';
+  $('#vocalLabel').textContent = DAW.vocal ? (DAW.vocalLabel || 'Vocal') + ' · ' + fmtTime(DAW.vocal.duration) : (DAW.recording ? 'Recording…' : 'No vocal yet. Press Record vocal to rap over the beat');
+  const open = !!(DAW.beat || DAW.vocal);
+  $('#dawEmpty').hidden = open; $('#dawWork').hidden = !open;
+  $('#dawSource').textContent = DAW.source ? DAW.source.sessionName + ' · ' + DAW.source.take : 'Saved recording';
+  $('#dawSave').textContent = DAW.projectId ? 'Save changes' : 'Save to history';
+  renderHistory();
   for (const k of ['beat', 'vocal']) {
     const tr = DAW.tr[k];
     $('#' + k + 'Vol').value = tr.vol; $('#' + k + 'Mute').setAttribute('aria-pressed', String(tr.mute));
@@ -421,7 +456,14 @@ document.addEventListener('click', async e => {
   if (t.closest('#dawPlay')) { DAW.playing ? dawStop() : dawPlay(); return }
   if (t.closest('#dawRec')) { DAW.recording ? dawRecStop() : dawRecStart(); return }
   if (t.closest('#dawToStart')) { const was = DAW.playing; dawStop(); DAW.pos = 0; if (was) dawPlay(0); else dawUI(); return }
-  if (t.closest('#dawBounce')) { bounceBeat(+$('#dawLoops').value); return }
+  if (t.closest('#dawSave')) { dawSave(); return }
+  if (b = t.closest('.recpick button')) { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); store.set('ggrap.recpick', { beat: recWant('Beat'), vocal: recWant('Vocal') }); return }
+  if (b = t.closest('[data-hopen]')) { openProject(b.dataset.hopen); return }
+  if (b = t.closest('[data-hdel]')) {
+    const id = b.dataset.hdel;
+    if (histDelArm !== id) { histDelArm = id; renderHistory(); setTimeout(() => { if (histDelArm === id) { histDelArm = null; renderHistory() } }, 4000); return }
+    histDelArm = null; await IDB.del(id, 'projects'); if (DAW.projectId === id) DAW.projectId = null; renderHistory(); toast('Deleted from history'); return;
+  }
   if (b = t.closest('[data-mute]')) { const tr = DAW.tr[b.dataset.mute]; tr.mute = !tr.mute; dawChanged(); return }
   if (b = t.closest('[data-fxon]')) { const [k, fx] = b.dataset.fxon.split('.'); DAW.tr[k].fx[fx].on = !DAW.tr[k].fx[fx].on; dawChanged(); return }
   if (b = t.closest('[data-export]')) { dawExport(b.dataset.export); return }
@@ -439,17 +481,8 @@ document.addEventListener('change', async e => {
   const t = e.target;
   if (t.id === 'lpBpm') LE.setTempo(+t.value);
   if (t.id === 'dawOffset' && DAW.playing) dawChanged();
-  if ((t.id === 'importBeat' || t.id === 'importVocal') && t.files[0]) {
-    ensureCtx();
-    try {
-      const buf = await decode(await t.files[0].arrayBuffer());
-      if (t.id === 'importBeat') { DAW.beat = buf; DAW.beatLabel = t.files[0].name; DAW.name = 'GGRap-' + t.files[0].name.replace(/\.[^.]+$/, '').replace(/\W+/g, '') }
-      else { DAW.vocal = buf; DAW.vocalLabel = t.files[0].name; DAW.offset = 0 }
-      DAW.pos = 0; dawUI(); toast('Imported ' + t.files[0].name);
-    } catch (err) { toast('That file could not be read. Try mp3, wav or m4a.') }
-    t.value = '';
-  }
 });
 window.addEventListener('resize', () => { if (!$('#daw').hidden) dawUI() });
 try { const v = store.get('ggrap.vol', 0.85); $('#lpVol').value = v } catch (e) { }
+{ const rp = store.get('ggrap.recpick', { beat: true, vocal: true }); $('#recBeat').setAttribute('aria-pressed', String(!!rp.beat)); $('#recVocal').setAttribute('aria-pressed', String(!!rp.vocal)) }
 requestAnimationFrame(drawLoopBars);
