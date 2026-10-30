@@ -1,0 +1,181 @@
+﻿style,artist,song,year,found,tempo_bpm,key,chord_key,chord_changes_rate,danceability,mood_aggressive,mood_happy,mood_sad,mood_relaxed,mood_party
+Old School (1980s),Run-DMC,It's Tricky,1986,True,128.3,E major,B minor,0.118,1.69,not_aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),Run-DMC,Walk This Way,1986,False,,,,,,,,,,
+Old School (1980s),Run-DMC,My Adidas,1986,False,,,,,,,,,,
+Old School (1980s),Run-DMC,King of Rock,1985,True,98.1,G# minor,D# minor,0.138,1.21,aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),Run-DMC,Peter Piper,1986,True,105.7,C# minor,C# minor,0.105,1.16,not_aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),Grandmaster Flash and the Furious Five,The Message,1982,True,101.2,C major,G major,0.15,1.52,aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),Grandmaster Flash and the Furious Five,Freedom,1980,True,108.6,A# major,D minor,0.146,1.28,aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),Grandmaster Flash and the Furious Five,The Adventures of Grandmaster Flash on the Wheels of Steel,1981,True,111.0,A minor,A major,0.125,1.46,aggressive,not_happy,not_sad,relaxed,not_party
+Old School (1980s),Grandmaster Flash and the Furious Five,Scorpio,1982,True,122.7,E minor,B major,0.064,1.23,aggressive,happy,not_sad,not_relaxed,party
+Old School (1980s),Grandmaster Flash and the Furious Five,New York New York,1983,True,99.7,E major,G# minor,0.152,1.47,not_aggressive,happy,not_sad,not_relaxed,party
+Old School (1980s),LL Cool J,I Can't Live Without My Radio,1985,True,119.4,D# minor,B minor,0.131,1.32,aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),LL Cool J,Rock the Bells,1985,True,82.7,A# minor,A# minor,0.101,1.35,aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),LL Cool J,I Need Love,1987,True,88.2,F major,F major,0.093,1.59,not_aggressive,happy,not_sad,relaxed,party
+Old School (1980s),LL Cool J,Mama Said Knock You Out,1990,True,102.4,F minor,G major,0.127,1.42,aggressive,not_happy,not_sad,not_relaxed,party
+Old School (1980s),LL Cool J,Doin' It,1996,True,94.5,A minor,F minor,0.096,1.93,not_aggressive,not_happy,not_sad,relaxed,party
+Boom Bap / 90s Golden Era,Nas,N.Y. State of Mind,1994,True,84.4,C# major,C# major,0.067,1.44,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Nas,The World Is Yours,1994,True,172.3,F# minor,A major,0.148,1.43,not_aggressive,not_happy,not_sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Nas,If I Ruled the World (Imagine That),1996,True,93.9,A# minor,A# minor,0.107,1.61,not_aggressive,not_happy,not_sad,relaxed,party
+Boom Bap / 90s Golden Era,Nas,Nas Is Like,1999,True,97.6,A minor,C# minor,0.146,1.57,not_aggressive,not_happy,not_sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Nas,One Mic,2002,True,91.7,F minor,C minor,0.074,1.08,not_aggressive,not_happy,not_sad,relaxed,party
+Boom Bap / 90s Golden Era,The Notorious B.I.G.,Juicy,1994,True,97.1,E major,C# minor,0.104,1.63,not_aggressive,happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,The Notorious B.I.G.,Big Poppa,1994,True,85.9,A minor,D minor,0.109,1.71,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,The Notorious B.I.G.,Hypnotize,1997,True,93.9,A minor,C# major,0.107,1.62,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,The Notorious B.I.G.,Mo Money Mo Problems,1997,True,104.4,E major,G# minor,0.087,1.39,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,The Notorious B.I.G.,Ten Crack Commandments,1997,True,86.9,A# minor,F major,0.155,1.72,not_aggressive,not_happy,not_sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Wu-Tang Clan,C.R.E.A.M.,1993,True,90.1,A# minor,F minor,0.04,1.34,not_aggressive,not_happy,sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Wu-Tang Clan,Protect Ya Neck,1993,True,102.0,A# minor,F minor,0.088,1.57,not_aggressive,not_happy,not_sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Wu-Tang Clan,Da Mystery of Chessboxin',1993,True,106.2,F# minor,C# minor,0.115,1.48,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Wu-Tang Clan,Triumph,1997,True,91.0,A# minor,A# minor,0.122,1.81,not_aggressive,not_happy,not_sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Wu-Tang Clan,Gravel Pit,2000,True,144.0,A# major,D minor,0.093,1.12,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Mobb Deep,"Shook Ones, Pt. II",1995,False,,,,,,,,,,
+Boom Bap / 90s Golden Era,Mobb Deep,Survival of the Fittest,1995,True,95.0,A minor,E major,0.095,1.55,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Mobb Deep,Hell on Earth (Front Lines),1996,True,92.0,A minor,F major,0.13,1.64,not_aggressive,not_happy,not_sad,relaxed,not_party
+Boom Bap / 90s Golden Era,Mobb Deep,Quiet Storm,1999,True,97.0,A major,A major,0.092,1.6,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Mobb Deep,Got It Twisted,2004,True,103.2,F major,D minor,0.091,1.57,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Jay-Z,Dead Presidents II,1996,True,87.2,G minor,G minor,0.064,1.55,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Jay-Z,Hard Knock Life (Ghetto Anthem),1998,True,153.9,C major,C major,0.058,1.56,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Jay-Z,Izzo (H.O.V.A.),2001,True,89.8,B major,F# major,0.106,1.24,not_aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Jay-Z,99 Problems,2003,True,93.3,A# major,F minor,0.136,1.19,aggressive,not_happy,not_sad,not_relaxed,party
+Boom Bap / 90s Golden Era,Jay-Z,Empire State of Mind,2009,True,128.2,F# major,F# major,0.088,1.46,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lo-fi / Jazz Rap,A Tribe Called Quest,Can I Kick It?,1990,True,96.6,E major,C# minor,0.112,1.43,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lo-fi / Jazz Rap,A Tribe Called Quest,Check the Rhime,1991,True,97.5,D minor,D minor,0.154,1.38,aggressive,not_happy,not_sad,not_relaxed,party
+Lo-fi / Jazz Rap,A Tribe Called Quest,Scenario,1991,True,104.0,D minor,B minor,0.166,1.42,aggressive,not_happy,not_sad,not_relaxed,party
+Lo-fi / Jazz Rap,A Tribe Called Quest,Award Tour,1993,True,98.1,F minor,F minor,0.104,1.36,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lo-fi / Jazz Rap,A Tribe Called Quest,Electric Relaxation,1993,True,98.4,D# minor,C minor,0.105,1.67,not_aggressive,happy,not_sad,relaxed,not_party
+G-Funk / West Coast,Dr. Dre,"Nuthin' but a ""G"" Thang",1992,True,94.7,C minor,F# minor,0.118,1.86,not_aggressive,not_happy,not_sad,not_relaxed,party
+G-Funk / West Coast,Dr. Dre,Let Me Ride,1993,True,92.4,C major,C minor,0.088,1.36,not_aggressive,not_happy,not_sad,not_relaxed,party
+G-Funk / West Coast,Dr. Dre,Still D.R.E.,1999,True,93.4,A minor,A minor,0.032,2.05,not_aggressive,happy,not_sad,relaxed,party
+G-Funk / West Coast,Dr. Dre,Forgot About Dre,1999,True,133.9,G minor,G minor,0.042,1.99,not_aggressive,not_happy,not_sad,relaxed,party
+G-Funk / West Coast,Dr. Dre,The Next Episode,1999,True,95.6,D minor,D minor,0.12,1.33,not_aggressive,not_happy,not_sad,not_relaxed,party
+G-Funk / West Coast,Snoop Dogg,What's My Name (Who Am I?),1993,True,97.6,C major,G major,0.131,1.72,not_aggressive,not_happy,not_sad,not_relaxed,party
+G-Funk / West Coast,Snoop Dogg,Gin and Juice,1994,True,94.5,F minor,F minor,0.059,1.32,not_aggressive,not_happy,not_sad,not_relaxed,party
+G-Funk / West Coast,Snoop Dogg,Doggy Dogg World,1994,True,93.6,A minor,A minor,0.087,1.45,not_aggressive,not_happy,not_sad,relaxed,not_party
+G-Funk / West Coast,Snoop Dogg,Beautiful,2003,True,101.0,E major,E minor,0.109,1.58,not_aggressive,not_happy,not_sad,relaxed,not_party
+G-Funk / West Coast,Snoop Dogg,Drop It Like It's Hot,2004,True,97.9,A# major,F minor,0.124,2.01,aggressive,not_happy,not_sad,not_relaxed,party
+G-Funk / West Coast,2Pac,Dear Mama,1995,True,84.1,D# minor,G# minor,0.105,1.26,not_aggressive,happy,sad,not_relaxed,not_party
+G-Funk / West Coast,2Pac,California Love,1995,True,91.5,C major,G minor,0.077,1.71,not_aggressive,happy,not_sad,not_relaxed,party
+G-Funk / West Coast,2Pac,All Eyez on Me,1996,True,93.2,D minor,A# major,0.091,1.67,not_aggressive,not_happy,not_sad,relaxed,party
+G-Funk / West Coast,2Pac,Hit 'Em Up,1996,True,95.3,A minor,A minor,0.14,1.6,aggressive,not_happy,not_sad,not_relaxed,not_party
+G-Funk / West Coast,2Pac,Changes,1998,True,111.1,C major,G major,0.08,1.4,not_aggressive,happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Eminem,The Real Slim Shady,2000,True,104.5,A# major,C minor,0.115,1.88,not_aggressive,not_happy,sad,relaxed,party
+Lyrical / Conscious,Eminem,Stan,2000,True,172.3,E major,C# minor,0.103,1.63,not_aggressive,not_happy,not_sad,relaxed,party
+Lyrical / Conscious,Eminem,Lose Yourself,2002,True,85.7,D minor,D minor,0.062,1.75,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lyrical / Conscious,Eminem,Without Me,2002,True,112.3,C minor,G minor,0.127,1.45,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lyrical / Conscious,Eminem,Rap God,2013,True,148.0,A# major,A# major,0.104,1.31,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kanye West,Through the Wire,2003,True,83.0,F major,F major,0.109,1.5,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kanye West,Jesus Walks,2004,True,87.3,D# minor,D# minor,0.085,1.27,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kanye West,Gold Digger,2005,True,92.4,G# major,G# major,0.143,1.66,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kanye West,Stronger,2007,True,104.0,A# minor,A# minor,0.12,1.38,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kanye West,POWER,2010,True,153.8,F minor,F minor,0.101,1.13,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kendrick Lamar,Swimming Pools (Drank),2012,True,73.9,F minor,G major,0.079,1.39,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,Kendrick Lamar,Alright,2015,True,113.0,F# minor,C# minor,0.085,1.19,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lyrical / Conscious,Kendrick Lamar,HUMBLE.,2017,True,150.2,A# minor,A# minor,0.102,1.09,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lyrical / Conscious,Kendrick Lamar,DNA.,2017,True,139.9,F major,A# major,0.074,0.97,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lyrical / Conscious,Kendrick Lamar,Not Like Us,2024,False,,,,,,,,,,
+Lyrical / Conscious,J. Cole,Work Out,2011,True,92.9,A# major,A# major,0.063,1.14,not_aggressive,happy,not_sad,relaxed,party
+Lyrical / Conscious,J. Cole,No Role Modelz,2014,True,100.0,A# minor,A# minor,0.06,1.35,not_aggressive,not_happy,not_sad,relaxed,not_party
+Lyrical / Conscious,J. Cole,Wet Dreamz,2014,True,87.9,A minor,A# minor,0.11,1.29,not_aggressive,not_happy,not_sad,not_relaxed,party
+Lyrical / Conscious,J. Cole,Love Yourz,2014,True,83.0,G# major,G# major,0.075,1.43,not_aggressive,not_happy,sad,relaxed,not_party
+Lyrical / Conscious,J. Cole,Middle Child,2019,True,123.9,A# major,A# major,0.079,1.09,not_aggressive,not_happy,not_sad,relaxed,party
+Melodic Rap,Drake,Started from the Bottom,2013,True,86.0,A# major,D minor,0.093,1.17,not_aggressive,not_happy,sad,relaxed,party
+Melodic Rap,Drake,"Hold On, We're Going Home",2013,True,100.0,F major,F major,0.097,1.38,not_aggressive,happy,not_sad,not_relaxed,party
+Melodic Rap,Drake,Hotline Bling,2015,True,135.1,A# major,A minor,0.059,1.2,not_aggressive,happy,sad,relaxed,not_party
+Melodic Rap,Drake,God's Plan,2018,True,153.4,A minor,E minor,0.079,1.02,not_aggressive,not_happy,not_sad,relaxed,party
+Melodic Rap,Drake,Nice for What,2018,True,124.7,A# minor,F minor,0.091,1.26,not_aggressive,not_happy,not_sad,relaxed,party
+Melodic Rap,Juice WRLD,All Girls Are the Same,2018,True,81.0,F major,D minor,0.044,0.99,not_aggressive,not_happy,not_sad,relaxed,not_party
+Melodic Rap,Juice WRLD,Lucid Dreams,2018,True,111.7,A major,A major,0.07,0.96,not_aggressive,not_happy,not_sad,relaxed,not_party
+Melodic Rap,Juice WRLD,Legends,2018,True,142.0,E major,C# minor,0.057,1.25,not_aggressive,not_happy,not_sad,not_relaxed,not_party
+Melodic Rap,Juice WRLD,Robbery,2019,True,80.1,D major,D major,0.064,1.03,not_aggressive,happy,sad,not_relaxed,not_party
+Melodic Rap,Juice WRLD,Wishing Well,2020,True,150.3,F major,A minor,0.055,1.44,not_aggressive,happy,not_sad,relaxed,party
+Melodic Rap,XXXTentacion,Look at Me!,2017,True,139.0,F minor,C# major,0.081,1.03,not_aggressive,not_happy,not_sad,not_relaxed,party
+Melodic Rap,XXXTentacion,Jocelyn Flores,2017,True,133.8,G minor,C minor,0.086,1.21,not_aggressive,not_happy,sad,relaxed,not_party
+Melodic Rap,XXXTentacion,SAD!,2018,True,149.9,G# major,C minor,0.083,1.24,not_aggressive,not_happy,not_sad,relaxed,party
+Melodic Rap,XXXTentacion,Moonlight,2018,True,128.1,A minor,A minor,0.033,1.1,not_aggressive,not_happy,sad,relaxed,not_party
+Melodic Rap,XXXTentacion,Changes,2018,True,129.8,E major,E major,0.045,1.19,not_aggressive,not_happy,sad,relaxed,not_party
+Trap,Future,Turn On the Lights,2012,True,130.0,A minor,C# major,0.064,1.14,not_aggressive,not_happy,not_sad,relaxed,party
+Trap,Future,March Madness,2015,True,124.4,F major,A# major,0.089,1.26,not_aggressive,happy,not_sad,not_relaxed,party
+Trap,Future,Low Life,2016,True,143.8,F minor,C minor,0.045,1.01,not_aggressive,not_happy,not_sad,relaxed,not_party
+Trap,Future,Mask Off,2017,True,150.3,A# major,A# major,0.056,1.06,not_aggressive,not_happy,not_sad,relaxed,party
+Trap,Future,Life Is Good,2020,True,142.2,A# major,A# minor,0.083,1.17,not_aggressive,not_happy,not_sad,relaxed,party
+Trap,Migos,Versace,2013,True,132.1,D minor,A# major,0.08,0.96,not_aggressive,not_happy,not_sad,relaxed,party
+Trap,Migos,Fight Night,2014,True,178.2,C# minor,C# major,0.091,1.33,not_aggressive,happy,not_sad,not_relaxed,party
+Trap,Migos,Bad and Boujee,2016,False,,,,,,,,,,
+Trap,Migos,T-Shirt,2017,True,139.0,D# minor,D# minor,0.071,1.23,not_aggressive,not_happy,not_sad,relaxed,party
+Trap,Migos,Walk It Talk It,2018,True,146.0,D minor,D minor,0.077,1.25,not_aggressive,not_happy,not_sad,relaxed,not_party
+Trap,Travis Scott,Antidote,2015,True,126.8,F# major,C# major,0.075,1.15,not_aggressive,not_happy,not_sad,not_relaxed,not_party
+Trap,Travis Scott,Goosebumps,2016,True,130.0,A minor,E minor,0.097,1.22,not_aggressive,not_happy,not_sad,not_relaxed,not_party
+Trap,Travis Scott,Sicko Mode,2018,True,154.8,A# major,A# minor,0.066,1.38,not_aggressive,not_happy,not_sad,relaxed,not_party
+Trap,Travis Scott,Highest in the Room,2019,True,152.6,A# major,D minor,0.062,1.12,not_aggressive,not_happy,sad,relaxed,party
+Trap,Travis Scott,FE!N,2023,False,,,,,,,,,,
+Trap,21 Savage,No Heart,2016,False,,,,,,,,,,
+Trap,21 Savage,X,2016,False,,,,,,,,,,
+Trap,21 Savage,Bank Account,2017,True,150.1,A# minor,C# major,0.05,1.18,not_aggressive,not_happy,not_sad,not_relaxed,party
+Trap,21 Savage,a lot,2018,True,146.0,F major,F major,0.096,1.09,not_aggressive,not_happy,not_sad,relaxed,party
+Trap,21 Savage,Rich Flex,2022,False,,,,,,,,,,
+Trap,Lil Baby,Drip Too Hard,2018,True,112.4,A minor,E major,0.076,1.02,not_aggressive,not_happy,not_sad,not_relaxed,party
+Trap,Lil Baby,Yes Indeed,2018,True,119.9,A# minor,F minor,0.072,1.08,not_aggressive,not_happy,sad,relaxed,party
+Trap,Lil Baby,Woah,2019,True,143.1,A# minor,A# major,0.055,1.35,not_aggressive,happy,not_sad,not_relaxed,party
+Trap,Lil Baby,The Bigger Picture,2020,True,137.6,A minor,C# major,0.066,1.24,not_aggressive,not_happy,not_sad,not_relaxed,party
+Trap,Lil Baby,Emotionally Scarred,2020,True,88.5,A minor,C# major,0.05,1.11,not_aggressive,happy,not_sad,not_relaxed,party
+Trap,Metro Boomin (producer),Ric Flair Drip,2017,True,100.0,G# minor,C# minor,0.048,1.06,not_aggressive,not_happy,not_sad,relaxed,not_party
+Trap,Metro Boomin (producer),Space Cadet,2018,True,109.0,F minor,F minor,0.049,1.12,not_aggressive,not_happy,sad,relaxed,not_party
+Trap,Metro Boomin (producer),Superhero (Heroes & Villains),2022,False,,,,,,,,,,
+Trap,Metro Boomin (producer),Creepin',2022,False,,,,,,,,,,
+Trap,Metro Boomin (producer),Like That,2024,False,,,,,,,,,,
+Rage,Playboi Carti,Location,2017,True,126.0,D# minor,D# minor,0.064,1.38,not_aggressive,not_happy,not_sad,relaxed,not_party
+Rage,Playboi Carti,Magnolia,2017,True,162.8,F minor,E minor,0.112,1.36,not_aggressive,not_happy,not_sad,not_relaxed,not_party
+Rage,Playboi Carti,Shoota,2018,False,,,,,,,,,,
+Rage,Playboi Carti,Long Time,2018,True,144.0,A minor,C major,0.077,1.14,not_aggressive,happy,not_sad,relaxed,not_party
+Rage,Playboi Carti,Sky,2020,True,140.0,D minor,D minor,0.044,1.39,not_aggressive,happy,not_sad,relaxed,not_party
+Drill,Chief Keef,I Don't Like,2012,False,,,,,,,,,,
+Drill,Chief Keef,Love Sosa,2012,True,132.0,F minor,A# major,0.095,1.11,not_aggressive,not_happy,not_sad,not_relaxed,party
+Drill,Chief Keef,Hate Bein' Sober,2012,False,,,,,,,,,,
+Drill,Chief Keef,3Hunna,2012,False,,,,,,,,,,
+Drill,Chief Keef,Faneto,2014,True,144.1,F major,D minor,0.101,1.24,not_aggressive,not_happy,not_sad,relaxed,party
+Drill,Pop Smoke,Welcome to the Party,2019,True,134.9,D minor,D minor,0.05,1.15,not_aggressive,not_happy,not_sad,not_relaxed,party
+Drill,Pop Smoke,Dior,2019,True,142.3,G minor,G minor,0.049,0.98,not_aggressive,not_happy,not_sad,relaxed,party
+Drill,Pop Smoke,Mood Swings,2020,True,90.0,A# minor,A# minor,0.034,1.37,not_aggressive,not_happy,not_sad,relaxed,not_party
+Drill,Pop Smoke,What You Know Bout Love,2020,True,84.0,A# major,G minor,0.077,1.07,not_aggressive,not_happy,sad,relaxed,party
+Drill,Pop Smoke,For the Night,2020,True,125.9,F# minor,C# minor,0.089,1.16,not_aggressive,not_happy,sad,not_relaxed,not_party
+Drill,Central Cee,Day in the Life,2020,False,,,,,,,,,,
+Drill,Central Cee,Commitment Issues,2021,False,,,,,,,,,,
+Drill,Central Cee,Doja,2022,False,,,,,,,,,,
+Drill,Central Cee,Sprinter,2023,False,,,,,,,,,,
+Drill,Central Cee,Band4Band,2024,False,,,,,,,,,,
+Grime / UK Rap,Stormzy,Shut Up,2015,True,139.7,G# minor,G# minor,0.095,1.2,not_aggressive,not_happy,sad,relaxed,not_party
+Grime / UK Rap,Stormzy,Big for Your Boots,2017,True,139.9,A minor,B minor,0.134,1.42,not_aggressive,not_happy,not_sad,relaxed,party
+Grime / UK Rap,Stormzy,Vossi Bop,2019,True,93.9,D# minor,G minor,0.057,1.64,not_aggressive,not_happy,not_sad,not_relaxed,party
+Grime / UK Rap,Stormzy,Crown,2019,True,109.8,A major,C# minor,0.058,0.93,not_aggressive,not_happy,sad,relaxed,not_party
+Grime / UK Rap,Stormzy,Own It,2019,True,104.0,F major,A# major,0.078,1.23,not_aggressive,happy,not_sad,relaxed,party
+Grime / UK Rap,Skepta,That's Not Me,2014,False,,,,,,,,,,
+Grime / UK Rap,Skepta,Shutdown,2015,True,138.1,A# major,G minor,0.123,1.5,not_aggressive,not_happy,sad,relaxed,party
+Grime / UK Rap,Skepta,Man,2016,True,137.0,D minor,A major,0.102,1.27,not_aggressive,not_happy,not_sad,relaxed,party
+Grime / UK Rap,Skepta,It Ain't Safe,2016,False,,,,,,,,,,
+Grime / UK Rap,Skepta,Ladies Hit Squad,2016,True,125.4,F major,F major,0.078,1.07,not_aggressive,not_happy,not_sad,relaxed,not_party
+Grime / UK Rap,Dave,Funky Friday,2018,True,125.1,F minor,A# minor,0.102,1.09,not_aggressive,not_happy,not_sad,relaxed,party
+Grime / UK Rap,Dave,Black,2019,True,84.0,D minor,D minor,0.056,1.06,not_aggressive,not_happy,not_sad,relaxed,party
+Grime / UK Rap,Dave,Location,2019,True,109.7,D minor,C major,0.078,1.29,not_aggressive,not_happy,sad,relaxed,not_party
+Grime / UK Rap,Dave,Clash,2021,False,,,,,,,,,,
+Grime / UK Rap,Dave,Starlight,2022,False,,,,,,,,,,
+World,PNL,Le monde ou rien,2015,True,103.0,F# minor,F# minor,0.053,1.11,not_aggressive,not_happy,not_sad,relaxed,not_party
+World,PNL,Onizuka,2016,True,108.9,A# minor,C# major,0.054,1.19,not_aggressive,not_happy,not_sad,relaxed,not_party
+World,PNL,Naha,2016,True,120.8,A# minor,C# major,0.052,1.12,not_aggressive,not_happy,not_sad,not_relaxed,party
+World,PNL,Au DD,2019,True,119.9,F# minor,F# minor,0.068,1.16,not_aggressive,not_happy,not_sad,relaxed,party
+World,PNL,Deux frères,2019,True,111.9,G minor,G minor,0.041,1.27,not_aggressive,not_happy,not_sad,relaxed,party
+World,Bad Bunny,Mía,2018,True,96.9,A minor,A major,0.066,1.2,not_aggressive,not_happy,not_sad,relaxed,not_party
+World,Bad Bunny,Callaíta,2019,True,87.8,D major,E minor,0.063,1.21,not_aggressive,not_happy,sad,relaxed,not_party
+World,Bad Bunny,Dákiti,2020,True,109.8,A minor,A minor,0.067,1.4,not_aggressive,not_happy,not_sad,relaxed,not_party
+World,Bad Bunny,Tití Me Preguntó,2022,True,103.1,A# minor,F minor,0.084,1.23,not_aggressive,not_happy,sad,relaxed,party
+World,Bad Bunny,Me Porto Bonito,2022,True,92.0,C# minor,A major,0.054,1.46,not_aggressive,not_happy,not_sad,relaxed,party
+World,Burna Boy,Ye,2018,True,126.5,F major,F minor,0.059,1.37,not_aggressive,not_happy,not_sad,relaxed,not_party
+World,Burna Boy,On the Low,2018,True,100.0,E major,F# minor,0.073,1.28,not_aggressive,not_happy,sad,relaxed,not_party
+World,Burna Boy,Anybody,2019,True,104.0,F# minor,F# minor,0.077,1.55,not_aggressive,not_happy,not_sad,relaxed,not_party
+World,Burna Boy,Last Last,2022,False,,,,,,,,,,
+World,Burna Boy,City Boys,2023,False,,,,,,,,,,
+World,Wizkid,Ojuelegba,2014,True,100.0,A minor,A minor,0.074,1.83,not_aggressive,happy,sad,relaxed,not_party
+World,Wizkid,Come Closer,2017,False,,,,,,,,,,
+World,Wizkid,Soco,2018,False,,,,,,,,,,
+World,Wizkid,Joro,2019,False,,,,,,,,,,
+World,Wizkid,Essence,2020,False,,,,,,,,,,
