@@ -1,0 +1,266 @@
+<title>GGRap Mixer</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;900&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a dark stage with the transport and the 4 version pads; the pads are the instrument. */
+:root{
+  --bg:#ECEEF3; --surface:#FFFFFF; --surface-2:#E1E5EC; --fg:#151821; --muted:#596072; --line:#CFD4DD;
+  --apricot:#C9690F; --pom:#B02A40; --blue:#2B4EA2; --green:#23825A; --on-accent:#FFFFFF;
+  --stage:#151821; --stage-fg:#F2F3F6; --stage-muted:#A3A9B8; --stage-line:#2C3140;
+  --pa:#C9690F; --pb:#2B4EA2; --pc:#B02A40; --pd:#23825A;
+  --display:"Big Shoulders Display",Impact,"Arial Narrow",sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F1117; --surface:#181B23; --surface-2:#222632; --fg:#ECEEF2; --muted:#9AA1B3; --line:#2D3241;
+  --apricot:#F2A24F; --pom:#EE6B83; --blue:#8DA8F2; --green:#5CC995; --on-accent:#17110A;
+  --stage:#07080C; --stage-fg:#F2F3F6; --stage-muted:#9AA1B3; --stage-line:#242836;
+  --pa:#F2A24F; --pb:#8DA8F2; --pc:#EE6B83; --pd:#5CC995; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0F1117; --surface:#181B23; --surface-2:#222632; --fg:#ECEEF2; --muted:#9AA1B3; --line:#2D3241;
+  --apricot:#F2A24F; --pom:#EE6B83; --blue:#8DA8F2; --green:#5CC995; --on-accent:#17110A;
+  --stage:#07080C; --stage-fg:#F2F3F6; --stage-muted:#9AA1B3; --stage-line:#242836;
+  --pa:#F2A24F; --pb:#8DA8F2; --pc:#EE6B83; --pd:#5CC995; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--apricot);outline-offset:2px}
+.label{font-family:var(--mono);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:900;font-size:clamp(46px,10vw,84px);line-height:.85;margin:0;letter-spacing:-.01em}
+h1 span{color:var(--apricot)}
+header .wrap{padding-block:26px 18px;display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between}
+.gens{display:flex;gap:6px;flex-wrap:wrap}
+.gen{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 12px;text-align:left;display:grid;line-height:1.25}
+.gen b{font-weight:600}
+.gen small{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+.gen[aria-pressed="true"]{border-color:var(--apricot);box-shadow:inset 0 0 0 2px var(--apricot)}
+
+.stage{background:var(--stage);color:var(--stage-fg);border-radius:14px;padding:20px;display:grid;gap:18px}
+.toprow{display:flex;flex-wrap:wrap;align-items:center;gap:14px 20px}
+.play{width:64px;height:64px;border-radius:50%;border:0;background:var(--apricot);color:var(--on-accent);display:grid;place-items:center;flex:none}
+.play svg{width:24px;height:24px;fill:currentColor}
+.now{display:grid;min-width:0;flex:1}
+.now .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--stage-muted)}
+.now .v{font-family:var(--display);font-weight:900;font-size:clamp(34px,7vw,56px);line-height:.95;text-transform:uppercase;overflow-wrap:anywhere}
+.now .v i{font-style:normal;color:var(--cur,var(--apricot))}
+.pos{font-family:var(--mono);font-size:26px;text-align:right}
+.pos small{display:block;font-size:11px;letter-spacing:.1em;color:var(--stage-muted);text-transform:uppercase}
+.bars{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+.bar{height:16px;border-radius:4px;background:var(--stage-line);position:relative;overflow:hidden}
+.bar i{position:absolute;inset:0 auto 0 0;width:0;background:var(--cur,var(--apricot));opacity:.85}
+.bar.fill::after{content:"";position:absolute;right:0;top:0;bottom:0;width:50%;background:repeating-linear-gradient(135deg,transparent 0 5px,rgba(255,255,255,.18) 5px 10px)}
+.notice{min-height:46px;display:flex;align-items:center;gap:10px;border-radius:10px;padding:10px 14px;background:var(--stage-line);font-weight:600}
+.notice .dot{width:10px;height:10px;border-radius:50%;background:var(--stage-muted);flex:none}
+.notice.hot{background:color-mix(in srgb,var(--nxt,var(--apricot)) 28%,var(--stage))}
+.notice.hot .dot{background:var(--nxt,var(--apricot));animation:pulse .5s ease-in-out infinite alternate}
+@keyframes pulse{from{transform:scale(.7)}to{transform:scale(1.2)}}
+.ctrl{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center}
+.seg{display:inline-flex;background:var(--stage-line);border-radius:999px;padding:3px}
+.seg button{border:0;background:none;color:var(--stage-muted);border-radius:999px;padding:6px 14px;font-weight:600}
+.seg button[aria-pressed="true"]{background:var(--stage-fg);color:var(--stage)}
+.vol{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--stage-muted)}
+.vol input{accent-color:var(--apricot);width:120px}
+
+.pads{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:18px}
+@media (max-width:720px){.pads{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.pad{--c:var(--pa);position:relative;border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:14px;text-align:left;display:grid;gap:6px;align-content:start;min-height:170px;min-width:0;transition:transform .08s}
+.pad:active{transform:scale(.98)}
+.pad .id{font-family:var(--display);font-weight:900;font-size:56px;line-height:.8;color:var(--c)}
+.pad .nm{font-weight:600;font-size:16px;line-height:1.2}
+.pad .ch{font-family:var(--mono);font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.pad .tr{font-size:12.5px;color:var(--muted)}
+.pad .badge{position:absolute;top:12px;right:12px;font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border-radius:999px}
+.pad.playing{border-color:var(--c);box-shadow:inset 0 0 0 3px var(--c)}
+.pad.playing .badge{background:var(--c);color:var(--on-accent)}
+.pad.next{border-style:dashed;border-color:var(--c)}
+.pad.next .badge{border:1px solid var(--c);color:var(--c)}
+.chain{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:14px;min-height:34px}
+.chain .chip{font-family:var(--display);font-weight:900;font-size:20px;width:34px;height:34px;border-radius:8px;display:grid;place-items:center;color:var(--on-accent);border:0}
+.chain .chip.at{outline:3px solid var(--fg);outline-offset:2px}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 14px;font-weight:600;font-size:14px}
+.help{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px;margin-block:26px 60px}
+.help div{border-left:3px solid var(--line);padding:4px 0 4px 14px;font-size:14px;color:var(--muted)}
+.help b{color:var(--fg);display:block;font-weight:600}
+.loading{font-family:var(--mono);font-size:12px;color:var(--stage-muted)}
+@media (prefers-reduced-motion:reduce){.notice.hot .dot{animation:none}.pad{transition:none}}
+</style>
+
+<header>
+  <div class="wrap">
+    <div>
+      <span class="label">GGRap · beat mixer</span>
+      <h1>Mix <span>4 versions</span></h1>
+    </div>
+    <div class="gens" id="gens" aria-label="Generation"></div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="stage" aria-label="Transport">
+    <div class="toprow">
+      <button class="play" id="play" aria-label="Play"><svg viewBox="0 0 20 20" id="playIcon"><path d="M5 3l12 7-12 7z"/></svg></button>
+      <div class="now"><span class="k" id="genInfo">Loading…</span><span class="v" id="nowName">Press play</span></div>
+      <div class="pos" id="pos">1.1<small>bar · beat</small></div>
+    </div>
+    <div class="bars" id="bars" aria-hidden="true">
+      <div class="bar"><i></i></div><div class="bar"><i></i></div><div class="bar"><i></i></div><div class="bar fill"><i></i></div>
+    </div>
+    <div class="notice" id="notice" role="status" aria-live="polite"><span class="dot"></span><span id="noticeText">Tap a version to queue it. It starts on the next loop.</span></div>
+    <div class="ctrl">
+      <div class="seg" role="group" aria-label="Mode">
+        <button data-mode="manual" aria-pressed="true">Tap to queue</button>
+        <button data-mode="random" aria-pressed="false">Random</button>
+        <button data-mode="chain" aria-pressed="false">Chain</button>
+      </div>
+      <label class="vol" for="vol">Volume <input type="range" id="vol" min="0" max="1" step="0.01" value="0.9"></label>
+      <span class="loading" id="loading"></span>
+    </div>
+  </section>
+
+  <div class="pads" id="pads"></div>
+  <div class="chain" id="chainRow" hidden>
+    <span class="label">Chain</span><span id="chain"></span>
+    <button class="btn" id="chainClear">Clear</button>
+  </div>
+
+  <div class="help">
+    <div><b>Tap to queue</b>Tap a pad and it plays after the current loop. Tap nothing and the current one repeats.</div>
+    <div><b>Random</b>The mixer picks a different version every loop and tells you which one is coming 2 beats early, when the transition starts.</div>
+    <div><b>Chain</b>Tap pads in the order you want, for example A A B D. The chain plays in a circle.</div>
+    <div><b>Transitions</b>The last 2 beats of every loop are a fill (striped area). Any version can follow any other.</div>
+  </div>
+</main>
+
+<script>
+(function(){
+const $=s=>document.querySelector(s),$$=s=>Array.from(document.querySelectorAll(s));
+const GENS=[{dir:'boombap'},{dir:'trap'}];
+const NOTES=['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+const DEG={i:[0,'m'],iv:[5,'m'],v:[7,'m'],V:[7,''],VI:[8,''],III:[3,''],VII:[10,''],ii0:[2,'dim']};
+const PADC=['var(--pa)','var(--pb)','var(--pc)','var(--pd)'];
+let ctx=null,master=null,gen=null,buffers={},mode='manual',queue=null,chain=[],chainAt=0;
+let playing=false,cur=null,curStart=0,nextStart=0,nextId=null,locked=false,sources=[],tick=null;
+
+function chordNames(key,prog){const root=NOTES.indexOf(key.split(' ')[0]);return prog.map(d=>{const [s,q]=DEG[d]||[0,''];return NOTES[(root+s)%12]+q}).join(' – ')}
+function loadManifests(){
+  return Promise.all(GENS.map(g=>fetch(g.dir+'/manifest.json').then(r=>r.json()).then(m=>Object.assign(g,m))));
+}
+function renderGens(){
+  $('#gens').innerHTML=GENS.map((g,i)=>'<button class="gen" data-gen="'+i+'" aria-pressed="'+(g===gen)+'"><b>'+g.style+'</b><small>'+g.bpm+' BPM · '+g.key+'</small></button>').join('');
+}
+function renderPads(){
+  $('#pads').innerHTML=gen.versions.map((v,i)=>'<button class="pad" data-v="'+v.id+'" style="--c:'+PADC[i]+'"><span class="badge" id="b-'+v.id+'"></span><span class="id">'+v.id+'</span><span class="nm">'+v.name+'</span><span class="ch">'+chordNames(gen.key,v.chords)+'</span><span class="tr">Ends with: '+v.transition+'</span></button>').join('');
+  $('#genInfo').textContent=gen.style+' · '+gen.bpm+' BPM · '+gen.key+' · 4 bars';
+}
+const colorOf=id=>PADC[gen.versions.findIndex(v=>v.id===id)];
+const nameOf=id=>{const v=gen.versions.find(v=>v.id===id);return v?v.id+' · '+v.name:''};
+
+async function ensureAudio(){
+  if(!ctx){ctx=new (window.AudioContext||window.webkitAudioContext)();master=ctx.createGain();master.gain.value=+$('#vol').value;master.connect(ctx.destination)}
+  if(ctx.state==='suspended')await ctx.resume();
+}
+async function loadGen(g){
+  const need=g.versions.filter(v=>!buffers[g.dir+'/'+v.file]);
+  if(!need.length)return;
+  $('#loading').textContent='Loading sounds…';
+  await Promise.all(need.map(v=>fetch(g.dir+'/'+v.file).then(r=>r.arrayBuffer()).then(b=>new Promise((res,rej)=>ctx.decodeAudioData(b,res,rej))).then(buf=>{buffers[g.dir+'/'+v.file]=buf})));
+  $('#loading').textContent='';
+}
+function startVersion(id,when){
+  const v=gen.versions.find(x=>x.id===id),src=ctx.createBufferSource(),g=ctx.createGain();
+  src.buffer=buffers[gen.dir+'/'+v.file];src.connect(g).connect(master);src.start(when);
+  sources.push({src,g,end:when+src.buffer.duration});
+  sources=sources.filter(s=>s.end>ctx.currentTime-0.1);
+}
+function pickNext(){
+  if(mode==='random'){const others=gen.versions.map(v=>v.id).filter(x=>x!==cur);return others[Math.floor(Math.random()*others.length)]}
+  if(mode==='chain'&&chain.length){chainAt=(chainAt+1)%chain.length;return chain[chainAt]}
+  if(queue){const q=queue;queue=null;return q}
+  return cur;
+}
+function schedulerTick(){
+  if(!playing)return;
+  const beat=gen.loop_seconds/16,now=ctx.currentTime;
+  // Lock in the next version when the transition starts (2 beats before the loop ends).
+  if(!locked&&now>=nextStart-2*beat-0.05){
+    nextId=pickNext();locked=true;
+    startVersion(nextId,nextStart);
+    announce();
+  }
+  if(now>=nextStart){
+    cur=nextId;curStart=nextStart;nextStart=curStart+gen.loop_seconds;locked=false;nextId=null;
+    announce();
+  }
+}
+function announce(){
+  const n=$('#notice'),t=$('#noticeText');
+  if(locked&&nextId){
+    const same=nextId===cur;
+    n.classList.add('hot');n.style.setProperty('--nxt',colorOf(nextId));
+    t.textContent=same?'Repeating '+nameOf(cur)+'. Transition now…':'Next up: '+nameOf(nextId)+' · switching in 2 beats';
+  }else{
+    n.classList.remove('hot');
+    t.textContent=mode==='random'?'Random is on. You will see the next version 2 beats before it starts.':
+      mode==='chain'?(chain.length?'Chain: '+chain.join(' ')+'. Tap pads to add more.':'Tap pads in order to build a chain.'):
+      queue?'Queued: '+nameOf(queue)+'. It starts on the next loop.':'Playing '+nameOf(cur)+'. Tap a version to queue it.';
+  }
+  $('#nowName').innerHTML=playing?'<i>'+cur+'</i> '+(gen.versions.find(v=>v.id===cur)||{}).name:'Press play';
+  document.documentElement.style.setProperty('--cur',playing?colorOf(cur):'var(--apricot)');
+  $$('.pad').forEach(p=>{const id=p.dataset.v;p.classList.toggle('playing',playing&&id===cur);p.classList.toggle('next',(locked&&id===nextId&&id!==cur)||(!locked&&id===queue&&mode==='manual'));
+    $('#b-'+id).textContent=playing&&id===cur?'Now':(locked&&id===nextId&&id!==cur)?'Next':(id===queue&&mode==='manual'?'Queued':'')});
+  renderChain();
+}
+function renderChain(){
+  $('#chainRow').hidden=mode!=='chain';
+  $('#chain').innerHTML=chain.map((id,i)=>'<span class="chip'+(playing&&i===chainAt?' at':'')+'" style="background:'+colorOf(id)+'">'+id+'</span>').join(' ');
+}
+function draw(){
+  if(playing&&ctx){
+    const beat=gen.loop_seconds/16,p=Math.max(0,ctx.currentTime-curStart),b=Math.min(15,Math.floor(p/beat));
+    $('#pos').firstChild.nodeValue=(Math.floor(b/4)+1)+'.'+(b%4+1);
+    $$('#bars .bar i').forEach((el,i)=>{el.style.width=Math.max(0,Math.min(1,(p-i*4*beat)/(4*beat)))*100+'%'});
+  }
+  requestAnimationFrame(draw);
+}
+async function play(){
+  await ensureAudio();await loadGen(gen);
+  cur=mode==='chain'&&chain.length?chain[chainAt=0]:(queue||gen.versions[0].id);queue=null;
+  curStart=ctx.currentTime+0.08;nextStart=curStart+gen.loop_seconds;locked=false;playing=true;
+  startVersion(cur,curStart);
+  clearInterval(tick);tick=setInterval(schedulerTick,25);
+  $('#playIcon').innerHTML='<path d="M5 3h4v14H5zM11 3h4v14h-4z"/>';$('#play').setAttribute('aria-label','Stop');
+  announce();
+}
+function stop(){
+  playing=false;clearInterval(tick);
+  const t=ctx.currentTime;
+  sources.forEach(s=>{try{s.g.gain.setTargetAtTime(0,t,0.04);s.src.stop(t+0.3)}catch(e){}});sources=[];
+  locked=false;nextId=null;
+  $('#playIcon').innerHTML='<path d="M5 3l12 7-12 7z"/>';$('#play').setAttribute('aria-label','Play');
+  $('#pos').firstChild.nodeValue='1.1';$$('#bars .bar i').forEach(el=>el.style.width='0');
+  announce();
+}
+$('#play').addEventListener('click',()=>playing?stop():play());
+$('#vol').addEventListener('input',e=>{if(master)master.gain.setTargetAtTime(+e.target.value,ctx.currentTime,0.02)});
+document.addEventListener('click',async e=>{
+  const pad=e.target.closest('[data-v]'),m=e.target.closest('[data-mode]'),g=e.target.closest('[data-gen]');
+  if(pad){
+    const id=pad.dataset.v;
+    if(mode==='chain'){chain.push(id);if(!playing){}}
+    else{if(mode==='random'){mode='manual';$$('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.mode==='manual')))}
+      queue=id;if(!playing)await play()}
+    announce();
+  }
+  if(m){mode=m.dataset.mode;$$('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===m)));if(mode==='chain')chainAt=Math.max(0,chain.indexOf(cur));announce()}
+  if(g){const wasPlaying=playing;if(playing)stop();gen=GENS[+g.dataset.gen];queue=null;chain=[];chainAt=0;renderGens();renderPads();announce();if(wasPlaying)await play()}
+});
+$('#chainClear').addEventListener('click',()=>{chain=[];chainAt=0;announce()});
+loadManifests().then(()=>{gen=GENS[0];renderGens();renderPads();announce();requestAnimationFrame(draw)})
+  .catch(()=>{$('#genInfo').textContent='Could not load the beats. Reload the page to try again.'});
+})();
+</script>

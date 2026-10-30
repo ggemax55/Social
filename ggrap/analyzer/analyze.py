@@ -26,8 +26,15 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
-import librosa
-import numpy as np
+import tempfile
+
+# librosa compiles parts of itself with numba and caches the result on disk.
+# Parallel workers writing that cache at the same moment can corrupt it, which
+# crashes Python later. Use our own cache folder and fill it once up front.
+os.environ.setdefault("NUMBA_CACHE_DIR", str(Path(tempfile.gettempdir()) / f"ggrap-numba-{os.getpid()}"))
+
+import librosa  # noqa: E402
+import numpy as np  # noqa: E402
 
 NOTES = ["C", "C#", "D", "Eb", "E", "F", "F#", "G", "Ab", "A", "Bb", "B"]
 # Krumhansl-Kessler key profiles
@@ -319,12 +326,26 @@ def main(argv=None):
 
     results, failed = [], []
     clip = args.clip or None
-    with ProcessPoolExecutor(max_workers=args.workers) as pool:
-        jobs = {pool.submit(_work, str(f), clip): f for f in todo}
-        for n, job in enumerate(as_completed(jobs), 1):
-            f = jobs[job]
+    def first_then_pool():
+        # The first song runs here, so every compiled part of librosa is built
+        # once before the workers start (they inherit it instead of racing).
+        if todo:
             try:
-                r = job.result()
+                yield todo[0], _work(str(todo[0]), clip), None
+            except Exception as e:
+                yield todo[0], None, e
+        with ProcessPoolExecutor(max_workers=args.workers) as pool:
+            jobs = {pool.submit(_work, str(f), clip): f for f in todo[1:]}
+            for job in as_completed(jobs):
+                try:
+                    yield jobs[job], job.result(), None
+                except Exception as e:
+                    yield jobs[job], None, e
+
+    for n, (f, r, err) in enumerate(first_then_pool(), 1):
+            try:
+                if err:
+                    raise err
             except Exception as e:  # one broken file shouldn't stop a batch
                 failed.append(f.name)
                 print(f"[{n}/{len(todo)}] !! {f.name}: {e}")
