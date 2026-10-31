@@ -362,6 +362,10 @@ textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surfac
 .meter.clip i{background:#E5484D}
 .filebtn{position:relative;overflow:hidden}
 .filebtn input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.owndots{display:inline-flex;gap:5px;align-items:center}
+.owndots i{width:10px;height:10px;border-radius:50%;background:var(--deck-line)}
+.owndots i.on{background:var(--apricot)}
+.owndots i.on:first-child{background:#E5484D}
 .toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:8px;font-size:14px;z-index:20;opacity:0;pointer-events:none;transition:opacity .2s}
 .toast.show{opacity:1}
 @media (prefers-reduced-motion:reduce){.light,.slot,.toast{transition:none}}
@@ -572,7 +576,7 @@ textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surfac
     <p>Freestyle is a reflex. You train it by forcing your mouth to keep going while new information arrives. Words drop on the beat; you have to work each one into your next bar.</p>
   </div>
   <div class="stage" id="stage">
-    <div class="top"><span id="fsStatus">Ready</span><span>Bars: <span id="fsBars">0</span></span></div>
+    <div class="top"><span id="fsStatus">Ready</span><span class="owndots" id="ownDots" hidden><i></i><i></i><i></i><i></i></span><span>Bars: <span id="fsBars">0</span></span></div>
     <div id="fsCard"></div>
     <div class="row" style="justify-content:space-between">
       <div class="next" id="fsNextWrap">Next: <b id="fsNext">…</b></div>
@@ -580,6 +584,10 @@ textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surfac
     </div>
   </div>
   <div class="row">
+    <div class="field"><label class="label" for="fsBeatSrc">Beat</label>
+      <select id="fsBeatSrc"><option value="app">App beat</option><option value="own">My own beat</option></select></div>
+    <div class="field" id="ownCtl" hidden><span class="label">Your beat's BPM</span>
+      <div class="row"><input type="number" id="ownBpm" min="50" max="200" value="90" style="width:5em" aria-label="Your beat's BPM"><button class="btn small" id="ownTap">Tap</button><button class="btn small" id="ownSync">Sync to 1</button><label class="toggle" for="ownClick" style="color:var(--muted)"><input type="checkbox" id="ownClick"> Click</label></div></div>
     <div class="field"><label class="label" for="fsSrc">What drops</label>
       <select id="fsSrc" data-src="1"><option value="words">Words</option><option value="pics">Pictures</option><option value="r1">1 word + 5 rhymes</option><option value="r5">5 words × 5 rhymes</option></select></div>
     <div class="field"><label class="label" for="fsLang">Language</label>
@@ -1201,8 +1209,8 @@ function fsAdvance(){
 }
 function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 async function fsStart(){
-  if(!LE.playing)await LE.play();
-  if(!LE.playing)return;
+  if(OWN.on){if(LE.playing)LE.stop();ownStart()}
+  else{if(!LE.playing)await LE.play();if(!LE.playing)return}
   fs.running=true;fs.count=0;fs.history=[];fs.current=null;fs.next=null;$('#fsHistory').innerHTML='';
   fsAdvance();
   const len=+$('#fsLen').value;fs.end=Date.now()+len*1000;
@@ -1210,7 +1218,7 @@ async function fsStart(){
   clearInterval(fs.tick);fs.tick=setInterval(()=>{const left=(fs.end-Date.now())/1000;$('#fsTimer').textContent=fmt(left);if(left<=0)fsStop(true)},200);
 }
 function fsStop(done){
-  fs.running=false;clearInterval(fs.tick);
+  fs.running=false;clearInterval(fs.tick);ownStop();
   $('#fsStatus').textContent=done?'Round done · '+(fs.history.length+1)+' prompts':'Stopped';
   if(done){$('#fsTimer').textContent='0:00';toast('Round done. Record the next one.');markDay();const cs=curSess();if(cs&&cs.mode==='freestyle'){cs.stats.rounds++;cs.stats.words+=fs.history.length+1;saveSessions()}}
 }

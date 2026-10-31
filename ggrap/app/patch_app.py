@@ -197,6 +197,29 @@ rep("if(t.closest('[data-vibeplay]')){applyVibe();start();toast(STYLES[state.sty
 rep("<span style=\"flex:1\"></span><button class=\"btn primary\" id=\"sessPlay\">▶ Play beat</button></div>'+",
     "</div>'+")
 
+# ---------- freestyle on your own beat: words change on a silent clock
+rep("""    <div class="top"><span id="fsStatus">Ready</span><span>Bars: <span id="fsBars">0</span></span></div>""",
+"""    <div class="top"><span id="fsStatus">Ready</span><span class="owndots" id="ownDots" hidden><i></i><i></i><i></i><i></i></span><span>Bars: <span id="fsBars">0</span></span></div>""")
+rep("""    <div class="field"><label class="label" for="fsSrc">What drops</label>""",
+"""    <div class="field"><label class="label" for="fsBeatSrc">Beat</label>
+      <select id="fsBeatSrc"><option value="app">App beat</option><option value="own">My own beat</option></select></div>
+    <div class="field" id="ownCtl" hidden><span class="label">Your beat's BPM</span>
+      <div class="row"><input type="number" id="ownBpm" min="50" max="200" value="90" style="width:5em" aria-label="Your beat's BPM"><button class="btn small" id="ownTap">Tap</button><button class="btn small" id="ownSync">Sync to 1</button><label class="toggle" for="ownClick" style="color:var(--muted)"><input type="checkbox" id="ownClick"> Click</label></div></div>
+    <div class="field"><label class="label" for="fsSrc">What drops</label>""")
+rep("""async function fsStart(){
+  if(!LE.playing)await LE.play();
+  if(!LE.playing)return;""","""async function fsStart(){
+  if(OWN.on){if(LE.playing)LE.stop();ownStart()}
+  else{if(!LE.playing)await LE.play();if(!LE.playing)return}""")
+rep("""function fsStop(done){
+  fs.running=false;clearInterval(fs.tick);""","""function fsStop(done){
+  fs.running=false;clearInterval(fs.tick);ownStop();""")
+rep(".toast{position:fixed;", """.owndots{display:inline-flex;gap:5px;align-items:center}
+.owndots i{width:10px;height:10px;border-radius:50%;background:var(--deck-line)}
+.owndots i.on{background:var(--apricot)}
+.owndots i.on:first-child{background:#E5484D}
+.toast{position:fixed;""")
+
 # ---------- studio code goes in before boot
 rep("/* ---------------- Boot ---------------- */", "/*STUDIO*/\n\n/* ---------------- Boot ---------------- */")
 Path(__file__).with_name("app.html").write_text(s)

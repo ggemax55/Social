@@ -171,11 +171,12 @@ async function recToggle() {
   if (REC.on) return recStop();
   const s = curSess();
   if (!s) { toast('Open a session first, then press Record'); return }
-  const wantBeat = recWant('Beat'), wantVocal = recWant('Vocal');
+  let wantBeat = recWant('Beat'); const wantVocal = recWant('Vocal');
+  if (OWN.on && wantBeat) { wantBeat = false; if (!wantVocal) { toast('You are on your own beat, so only your voice can be recorded. Turn on Vocal.'); return } toast('Recording your voice only: your own beat plays outside the app') }
   if (!wantBeat && !wantVocal) { toast('Choose what to record: Beat, Vocal, or both'); return }
   let mic = null;
   if (wantVocal) { try { mic = await getMic() } catch (e) { toast(micError(e)); return } }
-  if (!LE.playing) await LE.play(); // the beat always plays so you can rap to it, even when it isn't recorded
+  if (!OWN.on && !LE.playing) await LE.play(); // the app beat plays so you can rap to it, even when it isn't recorded
   const opts = MIME ? { mimeType: MIME } : {}, parts = {}, startedAt = Date.now(), recs = [];
   const add = (key, stream) => { const mr = new MediaRecorder(stream, opts), chunks = []; mr.ondataavailable = e => e.data.size && chunks.push(e.data); parts[key] = { mr, chunks }; recs.push(mr) };
   if (wantVocal) add('vocal', mic);
@@ -501,3 +502,39 @@ window.addEventListener('resize', () => { if (!$('#daw').hidden) dawUI() });
 try { const v = store.get('ggrap.vol', 0.85); $('#lpVol').value = v } catch (e) { }
 { const rp = store.get('ggrap.recpick', { beat: true, vocal: true }); $('#recBeat').setAttribute('aria-pressed', String(!!rp.beat)); $('#recVocal').setAttribute('aria-pressed', String(!!rp.vocal)) }
 requestAnimationFrame(drawLoopBars);
+
+/* ---------------- freestyle on your own beat ----------------
+   The words change on a silent clock at your beat's tempo, so you can play
+   any beat from another app or speaker. Tap sets the BPM, Sync to 1 lines the
+   bar up with your beat's first beat. */
+var OWN = { on: false, bpm: 90, t0: 0, tk: null, beat: -1, bar: 0, click: false, taps: [] };
+function ownStart() { ownStop(); OWN.t0 = performance.now() + 60; OWN.beat = -1; OWN.bar = 0; OWN.tk = setInterval(ownTick, 8) }
+function ownStop() { clearInterval(OWN.tk); OWN.tk = null; $$('#ownDots i').forEach(i => i.classList.remove('on')) }
+function ownTick() {
+  const b = Math.floor((performance.now() - OWN.t0) / (60000 / OWN.bpm));
+  if (b <= OWN.beat || b < 0) return;
+  OWN.beat = b;
+  $$('#ownDots i').forEach((i, k) => i.classList.toggle('on', k === b % 4));
+  if (OWN.click) { ensureCtx(); const t = ctx.currentTime, o = ctx.createOscillator(), g = ctx.createGain(); o.type = 'square'; o.frequency.value = b % 4 ? 1700 : 2400; g.gain.setValueAtTime(b % 4 ? 0.05 : 0.09, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.03); o.connect(g).connect(ctx.destination); o.start(t); o.stop(t + 0.04) }
+  if (b > 0 && b % 4 === 0) { OWN.bar++; barListeners.forEach(f => f(OWN.bar)) }
+}
+function ownUI() {
+  $('#fsBeatSrc').value = OWN.on ? 'own' : 'app'; $('#ownCtl').hidden = !OWN.on; $('#ownDots').hidden = !OWN.on;
+  $('#ownBpm').value = OWN.bpm; $('#ownClick').checked = OWN.click;
+  store.set('ggrap.own', { on: OWN.on, bpm: OWN.bpm, click: OWN.click });
+}
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.id === 'fsBeatSrc') { OWN.on = t.value === 'own'; if (OWN.on && LE.playing) LE.stop(); if (fs.running) fsStop(false); ownUI(); if (OWN.on) toast('Play your beat, set its BPM, then press Start round') }
+  if (t.id === 'ownBpm') { OWN.bpm = Math.max(50, Math.min(200, +t.value || 90)); ownUI() }
+  if (t.id === 'ownClick') { OWN.click = t.checked; ownUI() }
+});
+document.addEventListener('click', e => {
+  if (e.target.closest('#ownTap')) {
+    const now = performance.now(); OWN.taps = OWN.taps.filter(x => now - x < 2500).concat(now);
+    if (OWN.taps.length >= 3) { const d = OWN.taps.slice(1).map((x, i) => x - OWN.taps[i]); OWN.bpm = Math.round(60000 / (d.reduce((a, b) => a + b) / d.length)); ownUI() }
+    else toast('Keep tapping on the beat');
+  }
+  if (e.target.closest('#ownSync')) { if (!OWN.tk) { toast('Press Start round first, then Sync to 1 on the first beat of a bar'); return } OWN.t0 = performance.now(); OWN.beat = -1 }
+});
+{ const o = store.get('ggrap.own', null); if (o) { OWN.on = !!o.on; OWN.bpm = o.bpm || 90; OWN.click = !!o.click } ownUI() }
