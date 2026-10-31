@@ -157,8 +157,18 @@ const MIME = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;co
 async function getMic() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nomic');
   if (!REC.mic || REC.mic.getTracks().every(t => t.readyState === 'ended'))
-    REC.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    REC.mic = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 1 } });
   return REC.mic;
+}
+/* Many USB mics and audio interfaces put the voice on the left channel only.
+   Turn every vocal into one centred channel: keep the louder side if the
+   other is (nearly) silent, otherwise mix both. Fixes old takes too. */
+function centerVocal(buf) {
+  if (!buf || buf.numberOfChannels < 2) return buf;
+  const L = buf.getChannelData(0), R = buf.getChannelData(1), rms = d => { let s = 0; for (let i = 0; i < d.length; i += 16) s += d[i] * d[i]; return Math.sqrt(s / (d.length / 16)) };
+  const l = rms(L), r = rms(R), out = new AudioBuffer({ numberOfChannels: 1, length: buf.length, sampleRate: buf.sampleRate }), o = out.getChannelData(0);
+  if (r < l * 0.1) o.set(L); else if (l < r * 0.1) o.set(R); else for (let i = 0; i < o.length; i++) o[i] = (L[i] + R[i]) / 2;
+  return out;
 }
 function micError(e) {
   if (!window.isSecureContext) return 'Recording needs the GGRap.html file opened in Chrome, or the website.';
@@ -239,7 +249,7 @@ async function playTake(id) {
   if (LE.playing) LE.stop(); if (DAW.playing) dawStop();
   ensureCtx(); if (ctx.state === 'suspended') await ctx.resume();
   const dec = async b => b ? decode(await b.arrayBuffer()) : null;
-  const [vb, bb] = await Promise.all([dec(t.vocal), dec(t.beat)]);
+  const [vb0, bb] = await Promise.all([dec(t.vocal), dec(t.beat)]), vb = centerVocal(vb0);
   const at = ctx.currentTime + 0.1, srcs = [];
   for (const [buf, pos] of [[bb, 0], [vb, t.offset || 0]]) {
     if (!buf) continue;
@@ -253,7 +263,7 @@ async function playTake(id) {
 /* ---------------- DAW ---------------- */
 const fxDefaults = () => ({ eq: { on: false, low: 0, high: 0 }, comp: { on: false, amt: 0.5 }, delay: { on: false, mix: 0.25, time: '1/8' }, reverb: { on: false, mix: 0.25 } });
 const DAW = {
-  beat: null, vocal: null, offset: 0, bpm: 90, name: 'GGRap', playing: false, srcs: [], t0: 0, from: 0, pos: 0, recording: false,
+  beat: null, vocal: null, offset: 0, bpm: 90, panners: {}, name: 'GGRap', playing: false, srcs: [], t0: 0, from: 0, pos: 0, recording: false,
   tr: { beat: { vol: 0.85, mute: false, fx: fxDefaults() }, vocal: { vol: 1, mute: false, fx: Object.assign(fxDefaults(), { comp: { on: true, amt: 0.5 } }) } },
   master: { vol: 0.9 }
 };
@@ -264,9 +274,11 @@ function buildTrack(c, src, cfg, dest) {
   if (fx.eq.on) { const lo = c.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 150; lo.gain.value = fx.eq.low; const hi = c.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 5000; hi.gain.value = fx.eq.high; node.connect(lo); lo.connect(hi); node = hi }
   if (fx.comp.on) { const k = c.createDynamicsCompressor(); k.threshold.value = -10 - 30 * fx.comp.amt; k.ratio.value = 2 + 6 * fx.comp.amt; k.attack.value = 0.005; k.release.value = 0.15; const mk = c.createGain(); mk.gain.value = Math.pow(10, 8 * fx.comp.amt / 20); node.connect(k); k.connect(mk); node = mk }
   const out = c.createGain(); out.gain.value = cfg.mute ? 0 : cfg.vol; node.connect(out);
+  const pan = c.createStereoPanner(); pan.pan.value = cfg.pan || 0;
   if (fx.delay.on) { const d = c.createDelay(2); d.delayTime.value = 60 / DAW.bpm * ({ '1/8': 0.5, '1/4': 1, '1/8.': 0.75 }[fx.delay.time]); const fb = c.createGain(); fb.gain.value = 0.35; const w = c.createGain(); w.gain.value = fx.delay.mix; node.connect(d); d.connect(fb); fb.connect(d); d.connect(w); w.connect(out) }
   if (fx.reverb.on) { const cv = c.createConvolver(); cv.buffer = irBuffer(c); const w = c.createGain(); w.gain.value = fx.reverb.mix; node.connect(cv); cv.connect(w); w.connect(out) }
-  out.connect(dest);
+  out.connect(pan); pan.connect(dest);
+  return pan;
 }
 function buildGraph(c, at, from) {
   const mg = c.createGain(); mg.gain.value = DAW.master.vol;
@@ -274,7 +286,7 @@ function buildGraph(c, at, from) {
   mg.connect(lim); const srcs = [];
   for (const [key, buf, pos] of [['beat', DAW.beat, 0], ['vocal', DAW.vocal, DAW.offset]]) {
     if (!buf) continue;
-    const s = c.createBufferSource(); s.buffer = buf; buildTrack(c, s, DAW.tr[key], mg);
+    const s = c.createBufferSource(); s.buffer = buf; const pn = buildTrack(c, s, DAW.tr[key], mg); if (c === ctx) DAW.panners[key] = pn;
     const rel = pos - from;
     if (rel >= 0) s.start(at + rel); else if (-rel < buf.duration) s.start(at, -rel); else continue;
     srcs.push(s);
@@ -314,7 +326,7 @@ async function dawRecStart() {
   const chunks = [], mr = new MediaRecorder(mic, MIME ? { mimeType: MIME } : {});
   mr.ondataavailable = e => e.data.size && chunks.push(e.data);
   mr.onstop = async () => {
-    DAW.vocalBlob = new Blob(chunks, { type: mr.mimeType }); DAW.vocal = await decode(await DAW.vocalBlob.arrayBuffer());
+    DAW.vocalBlob = new Blob(chunks, { type: mr.mimeType }); DAW.vocal = centerVocal(await decode(await DAW.vocalBlob.arrayBuffer()));
     DAW.offset = -((ctx.outputLatency || 0) + (ctx.baseLatency || 0) + 0.015); DAW.vocalLabel = 'Recorded in the DAW';
     dawUI(); toast('Vocal recorded');
   };
@@ -327,7 +339,7 @@ async function openTakeInDaw(id) {
   const t = await IDB.get(id); if (!t) return;
   ensureCtx(); if (DAW.playing) dawStop();
   const dec = async b => b ? decode(await b.arrayBuffer()) : null;
-  DAW.beat = await dec(t.beat); DAW.vocal = await dec(t.vocal); DAW.beatBlob = t.beat; DAW.vocalBlob = t.vocal;
+  DAW.beat = await dec(t.beat); DAW.vocal = centerVocal(await dec(t.vocal)); DAW.beatBlob = t.beat; DAW.vocalBlob = t.vocal;
   DAW.offset = t.offset || 0; DAW.bpm = t.bpm || 90; DAW.pos = 0; DAW.name = 'GGRap-' + (t.sessionName || 'session').replace(/\W+/g, '') + '-' + t.name.replace(/\W+/g, '');
   DAW.source = { sessionId: t.sessionId, sessionName: t.sessionName || (sessions.find(x => x.id === t.sessionId) || {}).name || 'Session', take: t.name };
   DAW.beatLabel = DAW.beat ? 'Beat from ' + t.name : null; DAW.vocalLabel = DAW.vocal ? 'Vocal from ' + t.name : null; DAW.projectId = null;
@@ -345,7 +357,7 @@ async function openProject(id) {
   const p = await IDB.get(id, 'projects'); if (!p) return;
   ensureCtx(); if (DAW.playing) dawStop();
   const dec = async b => b ? decode(await b.arrayBuffer()) : null;
-  DAW.beat = await dec(p.beat); DAW.vocal = await dec(p.vocal); DAW.beatBlob = p.beat; DAW.vocalBlob = p.vocal;
+  DAW.beat = await dec(p.beat); DAW.vocal = centerVocal(await dec(p.vocal)); DAW.beatBlob = p.beat; DAW.vocalBlob = p.vocal;
   DAW.offset = p.offset; DAW.bpm = p.bpm; DAW.tr = JSON.parse(JSON.stringify(p.tr)); DAW.master = { ...p.master };
   DAW.source = p.source; DAW.name = p.fileName; DAW.projectId = p.id; DAW.pos = 0;
   DAW.beatLabel = DAW.beat ? 'Beat' : null; DAW.vocalLabel = DAW.vocal ? 'Vocal' : null;
@@ -389,7 +401,7 @@ function dawUI() {
   renderHistory();
   for (const k of ['beat', 'vocal']) {
     const tr = DAW.tr[k];
-    $('#' + k + 'Vol').value = tr.vol; $('#' + k + 'Mute').setAttribute('aria-pressed', String(tr.mute));
+    $('#' + k + 'Vol').value = tr.vol; $('#' + k + 'Pan').value = tr.pan || 0; $('#' + k + 'PanOut').textContent = panLabel(tr.pan); $('#' + k + 'Mute').setAttribute('aria-pressed', String(tr.mute));
     $('#' + k + 'Fx').innerHTML = fxPanel(k);
     drawWave($('#' + k + 'Wave canvas'), k === 'beat' ? DAW.beat : DAW.vocal);
   }
@@ -398,6 +410,7 @@ function dawUI() {
   $$('.wave .head').forEach(h => h.style.left = (L ? Math.min(100, DAW.pos / L * 100) : 0) + '%');
   $$('[data-export]').forEach(b => b.disabled = !L);
 }
+const panLabel = v => !v || Math.abs(v) < 0.025 ? 'C' : (v < 0 ? 'L' : 'R') + Math.round(Math.abs(v) * 100);
 function dawChanged() { if (DAW.playing && !DAW.recording) dawPlay(DAW.from + ctx.currentTime - DAW.t0); else dawUI() }
 
 /* ---------------- export ---------------- */
@@ -489,6 +502,10 @@ document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'lpVol') { if (LE.out) LE.out.gain.setTargetAtTime(+t.value, ctx.currentTime, 0.02); store.set('ggrap.vol', +t.value) }
   if (t.id === 'beatVol' || t.id === 'vocalVol') { DAW.tr[t.id.replace('Vol', '')].vol = +t.value; dawChanged() }
+  if (t.id === 'beatPan' || t.id === 'vocalPan') {
+    const k = t.id.replace('Pan', ''); DAW.tr[k].pan = +t.value; $('#' + k + 'PanOut').textContent = panLabel(+t.value);
+    if (DAW.playing && DAW.panners[k]) DAW.panners[k].pan.setTargetAtTime(+t.value, ctx.currentTime, 0.02); // move it live, no restart
+  }
   if (t.id === 'masterVol') { DAW.master.vol = +t.value; dawChanged() }
   if (t.id === 'dawOffset') { DAW.offset = +t.value / 1000; $('#dawOffsetOut').textContent = t.value + ' ms'; drawWave($('#vocalWave canvas'), DAW.vocal) }
   if (t.dataset && t.dataset.fx) { const [k, fx, p] = t.dataset.fx.split('.'); DAW.tr[k].fx[fx][p] = t.tagName === 'SELECT' ? t.value : +t.value; if (DAW.playing && !DAW.recording) dawPlay(DAW.from + ctx.currentTime - DAW.t0) }

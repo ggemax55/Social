@@ -477,13 +477,13 @@ textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surfac
   </div>
   <div class="track">
     <div class="track-head"><h3>Beat</h3><span class="muted" id="beatLabel"></span>
-      <div class="vctl"><label for="beatVol">Vol <input type="range" id="beatVol" min="0" max="1.2" step="0.01"></label><button class="btn small" data-mute="beat" id="beatMute" aria-pressed="false">Mute</button></div></div>
+      <div class="vctl"><label for="beatVol">Vol <input type="range" id="beatVol" min="0" max="1.2" step="0.01"></label><label for="beatPan">Pan <input type="range" id="beatPan" min="-1" max="1" step="0.05" value="0" style="width:90px"></label><output id="beatPanOut" class="label">C</output><button class="btn small" data-mute="beat" id="beatMute" aria-pressed="false">Mute</button></div></div>
     <div class="wave" id="beatWave"><canvas data-track="beat"></canvas><span class="head"></span></div>
     <div id="beatFx"></div>
   </div>
   <div class="track">
     <div class="track-head"><h3>Vocal</h3><span class="muted" id="vocalLabel"></span>
-      <div class="vctl"><label for="vocalVol">Vol <input type="range" id="vocalVol" min="0" max="1.5" step="0.01"></label><button class="btn small" data-mute="vocal" id="vocalMute" aria-pressed="false">Mute</button></div></div>
+      <div class="vctl"><label for="vocalVol">Vol <input type="range" id="vocalVol" min="0" max="1.5" step="0.01"></label><label for="vocalPan">Pan <input type="range" id="vocalPan" min="-1" max="1" step="0.05" value="0" style="width:90px"></label><output id="vocalPanOut" class="label">C</output><button class="btn small" data-mute="vocal" id="vocalMute" aria-pressed="false">Mute</button></div></div>
     <div class="wave" id="vocalWave"><canvas data-track="vocal"></canvas><span class="head"></span></div>
     <div class="vctl"><label for="dawOffset">Sync <input type="range" id="dawOffset" min="-400" max="400" step="5" value="0"></label><output id="dawOffsetOut" class="label">0 ms</output><span class="muted" style="font-size:12.5px">Slide left if your voice sounds late.</span></div>
     <div id="vocalFx"></div>
