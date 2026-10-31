@@ -49,6 +49,8 @@ rep(".toast{position:fixed;", r""".lp-row{display:flex;flex-wrap:wrap;align-item
 #dawWork{display:grid;gap:14px}
 .recpanel .rec{background:var(--surface-2);color:var(--fg)}
 .recpanel .rec.on{background:#E5484D;color:#fff}
+.rec.armed{background:transparent!important;color:#E5484D!important;box-shadow:inset 0 0 0 2px #E5484D}
+.rec.armed::before{animation:recpulse .45s ease-in-out infinite alternate}
 .recpick button:disabled{opacity:.5}
 .daw-transport .pos{font-family:var(--mono);font-size:20px;margin-left:auto}
 .track{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
@@ -209,11 +211,13 @@ rep("""    <div class="field"><label class="label" for="fsSrc">What drops</label
 rep("""async function fsStart(){
   if(!LE.playing)await LE.play();
   if(!LE.playing)return;""","""async function fsStart(){
-  if(OWN.on){if(LE.playing)LE.stop();ownStart()}
-  else{if(!LE.playing)await LE.play();if(!LE.playing)return}""")
+  REC.pendingBy='round';
+  if(OWN.on){if(LE.playing)LE.stop();ownStart();if(REC.armed)recBegin('round')}
+  else{if(!LE.playing)await LE.play();if(!LE.playing){REC.pendingBy=null;return}}
+  REC.pendingBy=null;""")
 rep("""function fsStop(done){
   fs.running=false;clearInterval(fs.tick);""","""function fsStop(done){
-  fs.running=false;clearInterval(fs.tick);ownStop();""")
+  fs.running=false;clearInterval(fs.tick);ownStop();if(REC.on&&REC.by==='round')recStop();""")
 rep(".toast{position:fixed;", """.owndots{display:inline-flex;gap:5px;align-items:center}
 .owndots i{width:10px;height:10px;border-radius:50%;background:var(--deck-line)}
 .owndots i.on{background:var(--apricot)}

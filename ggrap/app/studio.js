@@ -72,6 +72,7 @@ LE = {
     this.startLoop(this.cur, this.curStart, this.curTempo);
     clearInterval(this.tk); this.tk = setInterval(() => this.tick(), 25);
     renderLoopDeck(); announceMix();
+    if (REC.armed) recBegin(REC.pendingBy || 'beat');
   },
   stop() {
     this.playing = false; clearInterval(this.tk);
@@ -97,6 +98,7 @@ LE = {
     if (now >= this.nextStart) {
       this.cur = this.nextId; this.curStart = this.nextStart; this.curTempo = this.nextTempo;
       this.nextStart = this.curStart + this.loopSec(this.curTempo); this.locked = false; this.nextId = null; announceMix();
+      if (REC.armed) recBegin('beat'); // armed while the beat plays: start on bar 1 of the next loop
     }
     while (this.bars.length && this.bars[0] <= now) { this.bars.shift(); this.barNo++; barListeners.forEach(f => f(this.barNo)) }
   },
@@ -152,7 +154,7 @@ function drawLoopBars() {
 }
 
 /* ---------------- recording ---------------- */
-const REC = { on: false, mic: null, mr: [], t0: 0 };
+const REC = { on: false, armed: false, by: null, pendingBy: null, mic: null, mr: [], t0: 0 };
 const MIME = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'].find(m => window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(m)) || '';
 async function getMic() {
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error('nomic');
@@ -177,16 +179,32 @@ function micError(e) {
   return 'The microphone could not start in this view. Open GGRap.html in Chrome to record.';
 }
 const recWant = k => $('#rec' + k).getAttribute('aria-pressed') === 'true';
+function recPlan(quiet) {
+  const s = curSess();
+  if (!s) { toast('Open a session first, then press Record'); return null }
+  let wantBeat = recWant('Beat'); const wantVocal = recWant('Vocal');
+  if (OWN.on && wantBeat) { wantBeat = false; if (!wantVocal) { toast('You are on your own beat, so only your voice can be recorded. Turn on Vocal.'); return null } if (!quiet) toast('Recording your voice only: your own beat plays outside the app') }
+  if (!wantBeat && !wantVocal) { toast('Choose what to record: Beat, Vocal, or both'); return null }
+  return { s, wantBeat, wantVocal };
+}
+/* Record arms first (lit). Recording starts by itself when the words round
+   starts, when the beat starts, or (beat already playing) on bar 1 of the next
+   loop. It starts at once only if a words round is already running. */
 async function recToggle() {
   if (REC.on) return recStop();
-  const s = curSess();
-  if (!s) { toast('Open a session first, then press Record'); return }
-  let wantBeat = recWant('Beat'); const wantVocal = recWant('Vocal');
-  if (OWN.on && wantBeat) { wantBeat = false; if (!wantVocal) { toast('You are on your own beat, so only your voice can be recorded. Turn on Vocal.'); return } toast('Recording your voice only: your own beat plays outside the app') }
-  if (!wantBeat && !wantVocal) { toast('Choose what to record: Beat, Vocal, or both'); return }
+  if (REC.armed) { REC.armed = false; renderRec(); toast('Recording cancelled'); return }
+  const plan = recPlan(); if (!plan) return;
+  if (plan.wantVocal) { try { await getMic() } catch (e) { toast(micError(e)); return } } // ask for the mic now, not when the beat drops
+  if (fs.running) return recBegin('round'); // a round is already running: record it now, stop with it
+  REC.armed = true; renderRec();
+  toast(LE.playing ? 'Armed: recording starts at bar 1 of the next loop, or when you press Start round' : 'Armed: recording starts when you press Start round or play the beat');
+}
+async function recBegin(by) {
+  REC.armed = false;
+  const plan = recPlan(true); if (!plan) { renderRec(); return }
+  const { s, wantBeat, wantVocal } = plan;
   let mic = null;
-  if (wantVocal) { try { mic = await getMic() } catch (e) { toast(micError(e)); return } }
-  if (!OWN.on && !LE.playing) await LE.play(); // the app beat plays so you can rap to it, even when it isn't recorded
+  if (wantVocal) { try { mic = await getMic() } catch (e) { toast(micError(e)); renderRec(); return } }
   const opts = MIME ? { mimeType: MIME } : {}, parts = {}, startedAt = Date.now(), recs = [];
   const add = (key, stream) => { const mr = new MediaRecorder(stream, opts), chunks = []; mr.ondataavailable = e => e.data.size && chunks.push(e.data); parts[key] = { mr, chunks }; recs.push(mr) };
   if (wantVocal) add('vocal', mic);
@@ -200,15 +218,16 @@ async function recToggle() {
     await IDB.put(take); renderTakes(); toast('Saved ' + take.name + ' · ' + fmtTime(dur));
   };
   recs.forEach(mr => { mr.onstop = done; mr.start(250) });
-  REC.mr = recs; REC.on = true; REC.t0 = performance.now();
+  REC.mr = recs; REC.on = true; REC.by = by; REC.t0 = performance.now();
   renderRec();
 }
 function recStop() { REC.mr.forEach(m => m.state !== 'inactive' && m.stop()); REC.on = false; renderRec() }
 function renderRec() {
   const b = $('#recBtn'); if (!b) return;
-  b.classList.toggle('on', REC.on); b.setAttribute('aria-label', REC.on ? 'Stop recording' : 'Record');
-  if (!REC.on) $('#recTxt').textContent = 'Record';
-  $$('.recpick button').forEach(x => x.disabled = REC.on);
+  b.classList.toggle('on', REC.on); b.classList.toggle('armed', !!REC.armed && !REC.on);
+  b.setAttribute('aria-label', REC.on ? 'Stop recording' : REC.armed ? 'Cancel recording' : 'Record');
+  if (!REC.on) $('#recTxt').textContent = REC.armed ? 'Armed' : 'Record';
+  $$('.recpick button').forEach(x => x.disabled = REC.on || !!REC.armed);
 }
 
 /* ---------------- takes: saved on this device (IndexedDB) ---------------- */

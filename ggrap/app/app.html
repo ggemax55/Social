@@ -336,6 +336,8 @@ textarea#pad{width:100%;min-height:330px;resize:vertical;background:var(--surfac
 #dawWork{display:grid;gap:14px}
 .recpanel .rec{background:var(--surface-2);color:var(--fg)}
 .recpanel .rec.on{background:#E5484D;color:#fff}
+.rec.armed{background:transparent!important;color:#E5484D!important;box-shadow:inset 0 0 0 2px #E5484D}
+.rec.armed::before{animation:recpulse .45s ease-in-out infinite alternate}
 .recpick button:disabled{opacity:.5}
 .daw-transport .pos{font-family:var(--mono);font-size:20px;margin-left:auto}
 .track{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:10px}
@@ -1209,8 +1211,10 @@ function fsAdvance(){
 }
 function fmt(s){s=Math.max(0,Math.ceil(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
 async function fsStart(){
-  if(OWN.on){if(LE.playing)LE.stop();ownStart()}
-  else{if(!LE.playing)await LE.play();if(!LE.playing)return}
+  REC.pendingBy='round';
+  if(OWN.on){if(LE.playing)LE.stop();ownStart();if(REC.armed)recBegin('round')}
+  else{if(!LE.playing)await LE.play();if(!LE.playing){REC.pendingBy=null;return}}
+  REC.pendingBy=null;
   fs.running=true;fs.count=0;fs.history=[];fs.current=null;fs.next=null;$('#fsHistory').innerHTML='';
   fsAdvance();
   const len=+$('#fsLen').value;fs.end=Date.now()+len*1000;
@@ -1218,7 +1222,7 @@ async function fsStart(){
   clearInterval(fs.tick);fs.tick=setInterval(()=>{const left=(fs.end-Date.now())/1000;$('#fsTimer').textContent=fmt(left);if(left<=0)fsStop(true)},200);
 }
 function fsStop(done){
-  fs.running=false;clearInterval(fs.tick);ownStop();
+  fs.running=false;clearInterval(fs.tick);ownStop();if(REC.on&&REC.by==='round')recStop();
   $('#fsStatus').textContent=done?'Round done · '+(fs.history.length+1)+' prompts':'Stopped';
   if(done){$('#fsTimer').textContent='0:00';toast('Round done. Record the next one.');markDay();const cs=curSess();if(cs&&cs.mode==='freestyle'){cs.stats.rounds++;cs.stats.words+=fs.history.length+1;saveSessions()}}
 }
